@@ -2,63 +2,57 @@
 use std::time::Duration;
 
 use iroh::{endpoint::ConnectionError, Endpoint, RelayMode, SecretKey};
-use tracing::{debug, info, warn};
 
 // ALPN to use for the connection
 const EXAMPLE_ALPN: &[u8] = b"iroh-test";
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // tracing_subscriber::fmt::init();
     println!("\nlisten example!\n");
+    // generate secret key
     let secret_key = SecretKey::generate(rand::rngs::OsRng);
     println!("secret key: {secret_key}");
 
-    // Build a `Endpoint`, which uses PublicKeys as node identifiers, uses QUIC for directly connecting to other nodes, and uses the relay protocol and relay servers to holepunch direct connections between nodes when there are NATs or firewalls preventing direct connections. If no direct connection can be made, packets are relayed over the relay servers.
+    // build endpoint
     let endpoint = Endpoint::builder()
-        // The secret key is used to authenticate with other nodes. The PublicKey portion of this secret key is how we identify nodes, often referred to as the `node_id` in our codebase.
         .secret_key(secret_key)
-        // set the ALPN protocols this endpoint will accept on incoming connections
         .alpns(vec![EXAMPLE_ALPN.to_vec()])
-        // `RelayMode::Default` means that we will use the default relay servers to holepunch and relay.
-        // Use `RelayMode::Custom` to pass in a `RelayMap` with custom relay urls.
-        // Use `RelayMode::Disable` to disable holepunching and relaying over HTTPS
-        // If you want to experiment with relaying using your own relay server, you must pass in the same custom relay url to both the `listen` code AND the `connect` code
         .relay_mode(RelayMode::Default)
-        // you can choose a port to bind to, but passing in `0` will bind the socket to a random available port
         .bind()
         .await?;
 
+    // print local addresses
     let me = endpoint.node_id();
     println!("node id: {me}");
-    println!("node listening addresses:");
-
+    print!("node listening addresses: ");
     let node_addr = endpoint.node_addr().await?;
     let local_addrs = node_addr
         .direct_addresses
         .into_iter()
         .map(|addr| {
             let addr = addr.to_string();
-            println!("\t{addr}");
+            print!("{addr}\t");
             addr
         })
         .collect::<Vec<_>>()
         .join(" ");
+    println!();
     let relay_url = node_addr
         .relay_url
         .expect("Should have a relay URL, assuming a default endpoint setup.");
     println!("node relay server url: {relay_url}");
-    println!("\nin a separate terminal run:");
 
+    // print instructions for connecting
     println!(
-        "\tcargo run --bin connect -- --node-id {me} --addrs \"{local_addrs}\" --relay-url {relay_url}\n"
+        "\ncargo run --bin connect -- --node-id {me} --addrs \"{local_addrs}\" --relay-url {relay_url}\n"
     );
+
     // accept incoming connections, returns a normal QUIC connection
     while let Some(incoming) = endpoint.accept().await {
         let mut connecting = match incoming.accept() {
             Ok(connecting) => connecting,
             Err(err) => {
-                warn!("incoming connection failed: {err:#}");
+                println!("incoming connection failed: {err:#}");
                 // we can carry on in these cases:
                 // this can be caused by retransmitted datagrams
                 continue;
@@ -67,7 +61,7 @@ async fn main() -> anyhow::Result<()> {
         let alpn = connecting.alpn().await?;
         let conn = connecting.await?;
         let node_id = conn.remote_node_id()?;
-        info!(
+        println!(
             "new connection from {node_id} with ALPN {}",
             String::from_utf8_lossy(&alpn),
         );
@@ -77,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
             // accept a bi-directional QUIC connection
             // use the `quinn` APIs to send and recv content
             let (mut send, mut recv) = conn.accept_bi().await?;
-            debug!("accepted bi stream, waiting for data...");
+            println!("accepted bi stream, waiting for data...");
             let message = recv.read_to_end(100).await?;
             let message = String::from_utf8(message)?;
             println!("received: {message}");

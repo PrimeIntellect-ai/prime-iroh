@@ -29,37 +29,28 @@ struct Cli {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    // tracing_subscriber::fmt::init();
     println!("\nconnect example!\n");
     let args = Cli::parse();
     let secret_key = SecretKey::generate(rand::rngs::OsRng);
     println!("secret key: {secret_key}");
 
-    // Build a `Endpoint`, which uses PublicKeys as node identifiers, uses QUIC for directly connecting to other nodes, and uses the relay protocol and relay servers to holepunch direct connections between nodes when there are NATs or firewalls preventing direct connections. If no direct connection can be made, packets are relayed over the relay servers.
     let endpoint = Endpoint::builder()
-        // The secret key is used to authenticate with other nodes. The PublicKey portion of this secret key is how we identify nodes, often referred to as the `node_id` in our codebase.
         .secret_key(secret_key)
-        // Set the ALPN protocols this endpoint will accept on incoming connections
         .alpns(vec![EXAMPLE_ALPN.to_vec()])
-        // `RelayMode::Default` means that we will use the default relay servers to holepunch and relay.
-        // Use `RelayMode::Custom` to pass in a `RelayMap` with custom relay urls.
-        // Use `RelayMode::Disable` to disable holepunching and relaying over HTTPS
-        // If you want to experiment with relaying using your own relay server, you must pass in the same custom relay url to both the `listen` code AND the `connect` code
         .relay_mode(RelayMode::Default)
-        // You can choose an address to bind to, but passing in `None` will bind the socket to a random available port
         .bind()
         .await?;
 
     let me = endpoint.node_id();
     println!("node id: {me}");
-    println!("node listening addresses:");
+    print!("node listening addresses: ");
     for local_endpoint in endpoint
         .direct_addresses()
         .initialized()
         .await
         .context("no direct addresses")?
     {
-        println!("\t{}", local_endpoint.addr)
+        print!("{} ", local_endpoint.addr)
     }
 
     let relay_url = endpoint
@@ -67,28 +58,30 @@ async fn main() -> anyhow::Result<()> {
         .get()
         .unwrap()
         .expect("should be connected to a relay server, try calling `endpoint.local_endpoints()` or `endpoint.connect()` first, to ensure the endpoint has actually attempted a connection before checking for the connected relay server");
-    println!("node relay server url: {relay_url}\n");
-    // Build a `NodeAddr` from the node_id, relay url, and UDP addresses.
+    println!("\nnode relay server url: {relay_url}\n");
+
+    // build node address
     let addr = NodeAddr::from_parts(args.node_id, Some(args.relay_url), args.addrs);
 
-    // Attempt to connect, over the given ALPN.
-    // Returns a Quinn connection.
+    // connect to node
     let conn = endpoint.connect(addr, EXAMPLE_ALPN).await?;
 
-    // Use the Quinn API to send and recv content.
+    // open bi stream
     let (mut send, mut recv) = conn.open_bi().await?;
 
+    // send message
     let message = format!("{me} is saying 'hello!'");
     send.write_all(message.as_bytes()).await?;
 
-    // Call `finish` to close the send side of the connection gracefully.
+    // close send side
     send.finish()?;
+
+    // receive message
     let message = recv.read_to_end(100).await?;
     let message = String::from_utf8(message)?;
     println!("received: {message}");
 
-    // We received the last message: close all connections and allow for the close
-    // message to be sent.
+    // close all connections
     endpoint.close().await;
     Ok(())
 }
