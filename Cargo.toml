@@ -1,0 +1,23 @@
+[package]
+name = "iroh-test"
+version = "0.1.0"
+edition = "2024"
+
+
+[dependencies]
+anyhow = "1.0.97"
+iroh = "0.34.0"
+tokio = "1.44.1"
+tracing = "0.1.41"
+tracing-subscriber = "0.3.18"
+rand = "0.8.5"
+clap = { version = "4.5.32", features = ["derive"] }
+
+
+[[bin]]
+name = "listen"
+path = "src/listen.rs"
+
+[[bin]]
+name = "connect"
+path = "src/connect.rs"
