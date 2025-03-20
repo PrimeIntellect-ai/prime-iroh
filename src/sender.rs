@@ -22,6 +22,7 @@ impl IrohSender {
         send_stream.write_all(&msg).await?;
         send_stream.finish()?;
         send_stream.stopped().await?;
+        println!("Sent {}", String::from_utf8(msg)?);
         Ok(())
     }
 
