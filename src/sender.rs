@@ -31,7 +31,7 @@ impl IrohSender {
     }
 
     pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> JoinHandle<Result<()>> {
-        let stream = self.send_streams[tag].clone();
+        let stream = self.send_streams[tag].clone(); // TODO: Can we avoid this clone? 
         self.runtime.spawn(async move {
             let mut stream = stream.lock().await;
             let size = msg.len() as u32;
@@ -71,8 +71,8 @@ fn get_node_addr() -> Result<NodeAddr> {
 
 fn main() -> Result<()> {
     // Setup
-    let num_new_tokens = 10;
-    let num_micro_batches = 4;
+    let num_new_tokens = 4;
+    let num_micro_batches = 2;
 
     // Create sender
     let addr = get_node_addr()?;
@@ -81,6 +81,10 @@ fn main() -> Result<()> {
     // Send messages
     for token_idx in 0..num_new_tokens {
         for micro_batch_idx in 0..num_micro_batches {
+            // Do some work
+            std::thread::sleep(std::time::Duration::from_secs(1));
+
+            // Send message
             let msg = format!("token_idx: {}, micro_batch_idx: {}", token_idx, micro_batch_idx);
             println!("Sending msg: {}", msg);
             let _ = sender.send(msg.as_bytes().to_vec(), micro_batch_idx);

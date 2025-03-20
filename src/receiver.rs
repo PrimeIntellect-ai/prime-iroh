@@ -3,6 +3,7 @@ use iroh::{Endpoint, endpoint::{Connection, RecvStream}};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::runtime::Runtime;
+use tokio::task::JoinHandle;
 
 const ALPN: &[u8] = b"hello-world";
 
@@ -34,13 +35,11 @@ impl IrohReceiver {
 
         Ok(Self { runtime, endpoint, connection, recv_streams })
     }
-
-    pub fn recv(&mut self, tag: usize) -> Result<Vec<u8>> {
-        self.runtime.block_on(async {
-            // Lock the receiving stream
-            let stream = &mut self.recv_streams[tag];
+    
+    pub fn irecv(&mut self, tag: usize) -> JoinHandle<Result<Vec<u8>>> {
+        let stream = self.recv_streams[tag].clone();
+        self.runtime.spawn(async move {
             let mut stream = stream.lock().await;
-
             // Read the size of the message
             let mut size = [0; 4];
             stream.read_exact(&mut size).await?;
@@ -49,9 +48,13 @@ impl IrohReceiver {
             // Read the message
             let mut msg = vec![0; size];
             stream.read_exact(&mut msg).await?;
-
             Ok(msg)
         })
+    }
+
+    pub fn recv(&mut self, tag: usize) -> Result<Vec<u8>> {
+        let handle = self.irecv(tag);
+        self.runtime.block_on(handle)?
     }
 
     pub fn close(&mut self) -> Result<()> {
@@ -69,8 +72,8 @@ impl IrohReceiver {
 
 fn main() -> Result<()> {
     // Setup
-    let num_new_tokens = 10;
-    let num_micro_batches = 4;
+    let num_new_tokens = 4;
+    let num_micro_batches = 2;
 
     // Create receiver
     let mut receiver = IrohReceiver::new(num_micro_batches)?;
