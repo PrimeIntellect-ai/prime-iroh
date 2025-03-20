@@ -168,11 +168,11 @@ impl IrohNode {
                 }
             }
             // Close connection if it exists
-            if let Some(connection) = &self.send_connection {
-                connection.close(0u32.into(), b"close");
+            if let Some(send_connection) = &self.send_connection {
+                send_connection.close(0u32.into(), b"close");
             }
-            if let Some(connection) = &self.recv_connection {
-                connection.close(0u32.into(), b"close");
+            if let Some(recv_connection) = &self.recv_connection {
+                recv_connection.closed().await;
             }
             self.endpoint.close().await;
             Ok(())
@@ -186,70 +186,89 @@ impl IrohNode {
     }
 }
 
-fn run_receiver() -> Result<()> {
-    // Setup
-    let num_new_tokens = 4;
-    let num_micro_batches = 2;
-
-    // Create receiver
-    let mut receiver = IrohNode::new(num_micro_batches)?;
-    println!("cargo run --bin node {}", receiver.node_id());
-    receiver.listen()?;
-
-    // Receive messages
-    for token_idx in 0..num_new_tokens {
-        for micro_batch_idx in 0..num_micro_batches {
-            let recv_handle = receiver.irecv(micro_batch_idx)?;
-            let _ = recv_handle.wait();
-            println!("Received token idx {} micro batch idx {}", token_idx, micro_batch_idx);
-        }
-    }
-
-    // Close the receiver
-    receiver.close()?;
-
-    Ok(())
-}
-
-fn run_sender(addr: String) -> Result<()> {
-    // Setup
-    let num_new_tokens = 4;
-    let num_micro_batches = 2;
-
-    // Create sender
-    let mut sender = IrohNode::new(num_micro_batches)?;
-    sender.connect(addr)?;
-
-    // Send messages
-    for token_idx in 0..num_new_tokens {
-        let mut handles = Vec::new();
-        for micro_batch_idx in 0..num_micro_batches {
-            // Send message
-            println!("Sending token idx {} micro batch idx {}", token_idx, micro_batch_idx);
-            let msg = vec![token_idx as u8; 1024 * 1024 * 50];
-            let send_handle = sender.isend(msg, micro_batch_idx)?;
-            handles.push(send_handle);
-        }
-        for handle in handles {
-            let _ = handle.wait();
-        }
-    }
-
-
-    // Close the sender
-    let _ = sender.close();
-
-    Ok(())
-}
-    
 pub fn main() -> Result<()> {
+    use std::process::Command;
     use std::env;
+    use std::fs;
+    use std::thread;
+    use std::time::Duration;
 
-    let args: Vec<String> = env::args().collect();
-    match args.get(1) {
-        Some(node_id_str) => {
-            run_sender(node_id_str.clone())
+    let num_new_tokens  = 2;
+    let num_micro_batches = 2;
+
+    // Check if we're the child process
+    if let Some(arg) = env::args().nth(1) {
+        match arg.as_str() {
+            "receiver" => {
+                // Create receiver
+                let mut receiver = IrohNode::new(num_micro_batches)?;
+                let node_id = hex::encode(receiver.node_id().as_bytes());
+                fs::write("node_id.tmp", &node_id)?;
+
+                // Wait for connection
+                receiver.listen()?;
+
+                // Receive messages
+                for token_idx in 0..num_new_tokens {
+                    for micro_batch_idx in 0..num_micro_batches {
+                        let recv_handle = receiver.irecv(micro_batch_idx)?;
+                        let _ = recv_handle.wait();
+                        println!("Received token idx {} micro batch idx {}", token_idx, micro_batch_idx);
+                    }
+                }
+                receiver.close()?;
+
+                return Ok(());
+            },
+            "sender" => {
+                // Wait for and read node ID
+                for _ in 0..10 {
+                    if let Ok(node_id_str) = fs::read_to_string("node_id.tmp") {
+                        let mut sender = IrohNode::new(num_micro_batches)?;
+                        sender.connect(node_id_str)?;
+
+                        // Send messages
+                        for token_idx in 0..num_new_tokens {
+                            let mut handles = Vec::new();
+                            for micro_batch_idx in 0..num_micro_batches {
+                                // Send message
+                                println!("Sending token idx {} micro batch idx {}", token_idx, micro_batch_idx);
+                                let msg = vec![token_idx as u8; 1024 * 1024 * 50];
+                                let send_handle = sender.isend(msg, micro_batch_idx)?;
+                                handles.push(send_handle);
+                            }
+                            for handle in handles {
+                                let _ = handle.wait();
+                            }
+                        }
+
+                        // Close the sender
+                        sender.close()?;
+
+                        return Ok(());
+                    }
+                    thread::sleep(Duration::from_secs(1));
+                }
+                return Err(anyhow::anyhow!("Timeout waiting for node ID"));
+            },
+            _ => return Err(anyhow::anyhow!("Invalid argument")),
         }
-        None => run_receiver()
     }
+
+    // We're the parent process - spawn both processes
+    let receiver = Command::new(env::current_exe()?)
+        .arg("receiver")
+        .spawn()?;
+
+    thread::sleep(Duration::from_secs(1));
+
+    let sender = Command::new(env::current_exe()?)
+        .arg("sender")
+        .spawn()?;
+
+    receiver.wait_with_output()?;
+    sender.wait_with_output()?;
+
+    let _ = fs::remove_file("node_id.tmp");
+    Ok(())
 }
