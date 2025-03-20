@@ -1,54 +1,55 @@
 use anyhow::Result;
-use iroh::{NodeId, NodeAddr, Endpoint};
+use iroh::{NodeId, NodeAddr, Endpoint, endpoint::Connection};
 
 const ALPN: &[u8] = b"hello-world";
 
 pub struct IrohSender {
     endpoint: Endpoint,
+    connection: Connection,
 }
 
 impl IrohSender {
-    pub async fn new() -> Result<Self> {
+    pub async fn new(addr: NodeAddr) -> Result<Self> {
         println!("Sender starting...");
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
+        let connection = endpoint.connect(addr, ALPN).await?;
 
-        Ok(Self { endpoint })
-
+        Ok(Self { endpoint, connection })
     }
 
-    pub async fn send(&self, addr: NodeAddr, msg: Vec<u8>) -> Result<()> {
-        println!("Sender sending message...");
-        let connection = self.endpoint.connect(addr, ALPN).await?;
-        let mut send_stream = connection.open_uni().await?;
+    pub async fn send(&self, msg: Vec<u8>) -> Result<()> {
+        let mut send_stream = self.connection.open_uni().await?;
         send_stream.write_all(&msg).await?;
         send_stream.finish()?;
         send_stream.stopped().await?;
-        connection.close(0u32.into(), b"bye!");
-        println!("Sender signalized send done");
         Ok(())
     }
 
     pub async fn close(&mut self) -> Result<()> {
         println!("Sender closing...");
+        self.connection.close(0u32.into(), b"bye!");
         self.endpoint.close().await;
         Ok(())
     }
 } 
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn get_node_addr() -> Result<NodeAddr> {
     use std::env;
-
-    let mut sender = IrohSender::new().await?;
 
     let args: Vec<String> = env::args().collect();
     let node_id_str = args.get(1).expect("Expected node id as the first argument").clone();
     let bytes = hex::decode(node_id_str)?;
     let node_id = NodeId::from_bytes(bytes.as_slice().try_into()?)?;
-    let addr = NodeAddr::new(node_id);
+    Ok(NodeAddr::new(node_id))
+}
 
-    for _ in 0..10 {
-        sender.send(addr.clone(), b"hello".to_vec()).await?;
+#[tokio::main]
+async fn main() -> Result<()> {
+    let addr = get_node_addr()?;
+    let mut sender = IrohSender::new(addr).await?;
+
+    for num in 1..101 {
+        sender.send(num.to_string().as_bytes().to_vec()).await?;
     }
 
     sender.close().await?;

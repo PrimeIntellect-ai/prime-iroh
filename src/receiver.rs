@@ -1,10 +1,11 @@
 use anyhow::{Context, Result};
-use iroh::Endpoint;
+use iroh::{Endpoint, endpoint::Connection};
 
 const ALPN: &[u8] = b"hello-world";
 
 pub struct IrohReceiver {
     endpoint: Endpoint,
+    connection: Connection,
 }
 
 impl IrohReceiver {
@@ -16,14 +17,13 @@ impl IrohReceiver {
             .bind()
             .await?;
         println!("cargo run --bin sender {}", endpoint.node_id());
+        let connection = endpoint.accept().await.context("no incoming connection")?.await?;
 
-        Ok(Self { endpoint })
+        Ok(Self { endpoint, connection })
     }
 
     pub async fn recv(&mut self) -> Result<Vec<u8>> {
-        println!("Receiver waiting for message...");
-        let connection = self.endpoint.accept().await.context("no incoming connection")?.await?;
-        let mut recv_stream = connection.accept_uni().await?;
+        let mut recv_stream = self.connection.accept_uni().await?;
         let msg = recv_stream.read_to_end(usize::MAX).await?;
         Ok(msg)
     }
@@ -39,7 +39,7 @@ impl IrohReceiver {
 async fn main() -> Result<()> {
     let mut receiver = IrohReceiver::new().await?;
 
-    for _ in 0..10 {
+    for _ in 0..100 {
         let msg = receiver.recv().await?;
         println!("Received: {}", String::from_utf8(msg)?);
     }
