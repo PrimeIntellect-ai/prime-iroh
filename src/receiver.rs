@@ -36,6 +36,7 @@ impl IrohReceiver {
 
     pub async fn close(&mut self) -> Result<()> {
         println!("Receiver closing...");
+        self.recv_stream.stop(0u32.into())?;
         self.connection.closed().await;
         self.endpoint.close().await;
         Ok(())

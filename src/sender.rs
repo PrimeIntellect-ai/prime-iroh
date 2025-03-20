@@ -30,7 +30,6 @@ impl IrohSender {
     pub async fn close(&mut self) -> Result<()> {
         println!("Sender closing...");
         self.send_stream.stopped().await?;
-        self.send_stream.finish()?;
         self.connection.close(0u32.into(), b"bye!");
         self.endpoint.close().await;
         Ok(())
