@@ -1,11 +1,12 @@
 use anyhow::Result;
-use iroh::{NodeId, NodeAddr, Endpoint, endpoint::Connection};
+use iroh::{NodeId, NodeAddr, Endpoint, endpoint::{Connection, SendStream}};
 
 const ALPN: &[u8] = b"hello-world";
 
 pub struct IrohSender {
     endpoint: Endpoint,
     connection: Connection,
+    send_stream: SendStream,
 }
 
 impl IrohSender {
@@ -13,21 +14,23 @@ impl IrohSender {
         println!("Sender starting...");
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
         let connection = endpoint.connect(addr, ALPN).await?;
+        let send_stream = connection.open_uni().await?;
 
-        Ok(Self { endpoint, connection })
+        Ok(Self { endpoint, connection, send_stream })
     }
 
-    pub async fn send(&self, msg: Vec<u8>) -> Result<()> {
-        let mut send_stream = self.connection.open_uni().await?;
-        send_stream.write_all(&msg).await?;
-        send_stream.finish()?;
-        send_stream.stopped().await?;
-        println!("Sent {}", String::from_utf8(msg)?);
+    pub async fn send(&mut self, msg: Vec<u8>) -> Result<()> {
+        let size = msg.len() as u32;
+        self.send_stream.write_all(&size.to_le_bytes()).await?;
+        self.send_stream.write_all(&msg).await?;
+        println!("Sent {} bytes", size);
         Ok(())
     }
 
     pub async fn close(&mut self) -> Result<()> {
         println!("Sender closing...");
+        self.send_stream.stopped().await?;
+        self.send_stream.finish()?;
         self.connection.close(0u32.into(), b"bye!");
         self.endpoint.close().await;
         Ok(())
@@ -49,8 +52,9 @@ async fn main() -> Result<()> {
     let addr = get_node_addr()?;
     let mut sender = IrohSender::new(addr).await?;
 
-    for num in 1..101 {
-        sender.send(num.to_string().as_bytes().to_vec()).await?;
+    for num in 0..10 {
+        let huge_array = vec![num; 1024 * 1024 * 50]; // 1MB array
+        sender.send(huge_array).await?;
     }
 
     sender.close().await?;
