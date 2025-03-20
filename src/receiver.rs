@@ -3,54 +3,116 @@ use iroh::{Endpoint, endpoint::{Connection, RecvStream}};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::runtime::Runtime;
-use tokio::task::JoinHandle;
+use iroh::protocol::{ProtocolHandler, Router};
+
+use crate::work::Work;
 
 const ALPN: &[u8] = b"hello-world";
 
-pub struct RecvHandle {
-    runtime: Arc<Runtime>,
-    handle: JoinHandle<Result<Vec<u8>>>,
+#[derive(Clone)]
+struct ReceiverState {
+    connection: Option<Connection>,
+    recv_streams: Option<Vec<Arc<Mutex<RecvStream>>>>,
 }
 
-impl RecvHandle {
-    pub fn wait(self) -> Result<Vec<u8>> {
-        self.runtime.block_on(self.handle)?
+#[derive(Clone)]
+struct ReceiverHandler {
+    state: Arc<Mutex<ReceiverState>>,
+    num_streams: usize,
+}
+
+impl ReceiverHandler {
+    fn new(num_streams: usize) -> Self {
+        Self {
+            state: Arc::new(Mutex::new(ReceiverState {
+                connection: None,
+                recv_streams: None,
+            })),
+            num_streams,
+        }
     }
 }
 
-pub struct IrohReceiver {
-    runtime: Arc<Runtime>,
-    endpoint: Endpoint,
-    connection: Connection,
-    recv_streams: Vec<Arc<Mutex<RecvStream>>>,
+impl ProtocolHandler for ReceiverHandler {
+    fn accept(&self, conn: Connection) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send>> {
+        let state = self.state.clone();
+        let num_streams = self.num_streams;
+        
+        Box::pin(async move {
+            let mut state = state.lock().await;
+            
+            // Initialize receive streams
+            let mut streams = Vec::with_capacity(num_streams);
+            for _ in 0..num_streams {
+                let recv_stream = conn.accept_uni().await?;
+                streams.push(Arc::new(Mutex::new(recv_stream)));
+            }
+
+            // Store connection and streams
+            state.connection = Some(conn);
+            state.recv_streams = Some(streams);
+            
+            Ok(())
+        })
+    }
 }
 
-impl IrohReceiver {
+pub struct Receiver {
+    runtime: Arc<Runtime>,
+    endpoint: Endpoint,
+    state: Arc<Mutex<ReceiverState>>,
+    router: Option<Router>,
+}
+
+impl Receiver {
     pub fn new(num_streams: usize) -> Result<Self> {
         let runtime = Arc::new(Runtime::new()?);
-        let (endpoint, connection, recv_streams) = runtime.block_on(async {
+        
+        let endpoint = runtime.block_on(async {
             let endpoint = Endpoint::builder()
                 .discovery_n0()
                 .alpns(vec![ALPN.to_vec()])
                 .bind()
                 .await?;
-            println!("cargo run --bin sender {}", endpoint.node_id());
-            let connection = endpoint.accept().await.context("no incoming connection")?.await?;
-            let mut recv_streams = Vec::with_capacity(num_streams);
-            for _ in 0..num_streams {
-                let recv_stream = connection.accept_uni().await?;
-                recv_streams.push(Arc::new(Mutex::new(recv_stream)));
-            }
-            Ok::<(Endpoint, Connection, Vec<Arc<Mutex<RecvStream>>>), anyhow::Error>((endpoint, connection, recv_streams))
+            println!("cargo run sender {}", endpoint.node_id());
+            Ok::<Endpoint, anyhow::Error>(endpoint)
         })?;
 
-        Ok(Self { runtime, endpoint, connection, recv_streams })
+        let state = Arc::new(Mutex::new(ReceiverState {
+            connection: None,
+            recv_streams: None,
+        }));
+
+        let handler = ReceiverHandler::new(num_streams);
+
+        // Set up router with protocol handler
+        let router = runtime.block_on(async {
+            Router::builder(endpoint.clone())
+                .accept(ALPN, handler)
+                .spawn()
+                .await
+        })?;
+
+        Ok(Self {
+            runtime,
+            endpoint,
+            state,
+            router: Some(router),
+        })
     }
     
-    pub fn irecv(&mut self, tag: usize) -> RecvHandle {
-        let stream = self.recv_streams[tag].clone();
+    pub fn irecv(&mut self, tag: usize) -> Work<Vec<u8>> {
+        let state = self.state.clone();
         let handle = self.runtime.spawn(async move {
+            let state = state.lock().await;
+            
+            if state.recv_streams.is_none() {
+                return Err(anyhow::anyhow!("No receive streams available"));
+            }
+            
+            let stream = state.recv_streams.as_ref().unwrap()[tag].clone();
             let mut stream = stream.lock().await;
+            
             // Read the size of the message
             let mut size = [0; 4];
             stream.read_exact(&mut size).await?;
@@ -61,7 +123,7 @@ impl IrohReceiver {
             stream.read_exact(&mut msg).await?;
             Ok(msg)
         });
-        RecvHandle {
+        Work {
             runtime: self.runtime.clone(),
             handle,
         }
@@ -73,36 +135,23 @@ impl IrohReceiver {
 
     pub fn close(&mut self) -> Result<()> {
         self.runtime.block_on(async {
-            for stream in self.recv_streams.iter_mut() {
-                let mut stream = stream.lock().await;
-                stream.stop(0u32.into())?;
+            let state = self.state.lock().await;
+            
+            // Close receive streams if they exist
+            if let Some(streams) = &state.recv_streams {
+                for stream in streams {
+                    let mut stream = stream.lock().await;
+                    stream.stop(0u32.into())?;
+                }
             }
-            self.connection.closed().await;
+            
+            // Close connection if it exists
+            if let Some(connection) = &state.connection {
+                connection.closed().await;
+            }
+            
             self.endpoint.close().await;
             Ok(())
         })
     }
-}
-
-fn main() -> Result<()> {
-    // Setup
-    let num_new_tokens = 4;
-    let num_micro_batches = 2;
-
-    // Create receiver
-    let mut receiver = IrohReceiver::new(num_micro_batches)?;
-
-    // Receive messages
-    for token_idx in 0..num_new_tokens {
-        for micro_batch_idx in 0..num_micro_batches {
-            let recv_handle = receiver.irecv(micro_batch_idx);
-            let _ = recv_handle.wait();
-            println!("Received token idx {} micro batch idx {}", token_idx, micro_batch_idx);
-        }
-    }
-
-    // Close the receiver
-    receiver.close()?;
-
-    Ok(())
 }
