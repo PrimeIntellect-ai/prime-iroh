@@ -1,36 +1,48 @@
 use anyhow::Result;
 use iroh::{NodeId, NodeAddr, Endpoint, endpoint::{Connection, SendStream}};
+use std::sync::Arc;
+use std::time::Duration;
+use tokio::sync::Mutex;
 
 const ALPN: &[u8] = b"hello-world";
 
+#[derive(Clone)]
 pub struct IrohSender {
     endpoint: Endpoint,
     connection: Connection,
-    send_stream: SendStream,
+    send_streams: Vec<Arc<Mutex<SendStream>>>,
 }
 
 impl IrohSender {
-    pub async fn new(addr: NodeAddr) -> Result<Self> {
+    pub async fn new(addr: NodeAddr, num_streams: usize) -> Result<Self> {
         println!("Sender starting...");
         let endpoint = Endpoint::builder().discovery_n0().bind().await?;
         let connection = endpoint.connect(addr, ALPN).await?;
-        let send_stream = connection.open_uni().await?;
+        let mut send_streams = Vec::with_capacity(num_streams);
+        for _ in 0..num_streams {
+            let send_stream = Arc::new(Mutex::new(connection.open_uni().await?));
+            send_streams.push(send_stream);
+        }
 
-        Ok(Self { endpoint, connection, send_stream })
+        Ok(Self { endpoint, connection, send_streams })
     }
 
-    pub async fn send(&mut self, msg: Vec<u8>) -> Result<()> {
+    pub async fn send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
+        let stream = &mut self.send_streams[tag];
+        let mut stream = stream.lock().await;
         let size = msg.len() as u32;
-        self.send_stream.write_all(&size.to_le_bytes()).await?;
-        self.send_stream.write_all(&msg).await?;
-        println!("Sent {} bytes", size);
+        stream.write_all(&size.to_le_bytes()).await?;
+        stream.write_all(&msg).await?;
         Ok(())
     }
 
     pub async fn close(&mut self) -> Result<()> {
         println!("Sender closing...");
-        self.send_stream.stopped().await?;
-        self.connection.close(0u32.into(), b"bye!");
+        for stream in self.send_streams.iter_mut() {
+            let mut stream = stream.lock().await;
+            stream.stopped().await?;
+        }
+        self.connection.close(0u32.into(), b"close");
         self.endpoint.close().await;
         Ok(())
     }
@@ -48,14 +60,35 @@ fn get_node_addr() -> Result<NodeAddr> {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let addr = get_node_addr()?;
-    let mut sender = IrohSender::new(addr).await?;
+    // Setup
+    let num_new_tokens = 10;
+    let num_micro_batches = 4;
 
-    for num in 0..10 {
-        let huge_array = vec![num; 1024 * 1024 * 50]; // 1MB array
-        sender.send(huge_array).await?;
+    // Create sender
+    let addr = get_node_addr()?;
+    let mut sender = IrohSender::new(addr, num_micro_batches).await?;
+
+    // Send messages
+    let mut handles = vec![];
+    for token_idx in 0..num_new_tokens {
+        for micro_batch_idx in 0..num_micro_batches {
+            let mut sender_clone = sender.clone();  
+            let handle = tokio::spawn(async move {
+                let msg = format!("token_idx: {}, micro_batch_idx: {}", token_idx, micro_batch_idx);
+                println!("Sending msg: {}", msg);
+                // Pretend to do some work
+                tokio::time::sleep(Duration::from_secs(1)).await;
+                let _ = sender_clone.send(msg.as_bytes().to_vec(), micro_batch_idx).await;
+            });
+            handles.push(handle);
+        }
+        for handle in handles.iter_mut() {
+            handle.await?;
+        }
+        handles.clear();
     }
 
+    // Close the sender
     sender.close().await?;
 
     Ok(())
