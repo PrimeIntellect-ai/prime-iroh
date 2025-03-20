@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use iroh::{Endpoint, endpoint::{Connection, RecvStream}};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -9,25 +9,22 @@ use crate::work::Work;
 
 const ALPN: &[u8] = b"hello-world";
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ReceiverState {
-    connection: Option<Connection>,
-    recv_streams: Option<Vec<Arc<Mutex<RecvStream>>>>,
+    connection: Connection,
+    recv_streams: Vec<Arc<Mutex<RecvStream>>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 struct ReceiverHandler {
-    state: Arc<Mutex<ReceiverState>>,
+    state: Arc<Mutex<Option<ReceiverState>>>,
     num_streams: usize,
 }
 
 impl ReceiverHandler {
-    fn new(num_streams: usize) -> Self {
+    fn new(num_streams: usize, state: Arc<Mutex<Option<ReceiverState>>>) -> Self {
         Self {
-            state: Arc::new(Mutex::new(ReceiverState {
-                connection: None,
-                recv_streams: None,
-            })),
+            state,
             num_streams,
         }
     }
@@ -35,12 +32,13 @@ impl ReceiverHandler {
 
 impl ProtocolHandler for ReceiverHandler {
     fn accept(&self, conn: Connection) -> std::pin::Pin<Box<dyn std::future::Future<Output = anyhow::Result<()>> + Send>> {
-        let state = self.state.clone();
         let num_streams = self.num_streams;
-        
+        let state = self.state.clone();
         Box::pin(async move {
             let mut state = state.lock().await;
-            
+            if state.is_some() {
+                return Err(anyhow::anyhow!("Already have a connection"));
+            }
             // Initialize receive streams
             let mut streams = Vec::with_capacity(num_streams);
             for _ in 0..num_streams {
@@ -49,8 +47,11 @@ impl ProtocolHandler for ReceiverHandler {
             }
 
             // Store connection and streams
-            state.connection = Some(conn);
-            state.recv_streams = Some(streams);
+            let state_ref = ReceiverState {
+                connection: conn,
+                recv_streams: streams,
+            };
+            *state = Some(state_ref);
             
             Ok(())
         })
@@ -59,9 +60,9 @@ impl ProtocolHandler for ReceiverHandler {
 
 pub struct Receiver {
     runtime: Arc<Runtime>,
+    state: Arc<Mutex<Option<ReceiverState>>>,
     endpoint: Endpoint,
-    state: Arc<Mutex<ReceiverState>>,
-    router: Option<Router>,
+    router: Router,
 }
 
 impl Receiver {
@@ -78,12 +79,8 @@ impl Receiver {
             Ok::<Endpoint, anyhow::Error>(endpoint)
         })?;
 
-        let state = Arc::new(Mutex::new(ReceiverState {
-            connection: None,
-            recv_streams: None,
-        }));
-
-        let handler = ReceiverHandler::new(num_streams);
+        let state = Arc::new(Mutex::new(None));
+        let handler = ReceiverHandler::new(num_streams, state.clone());
 
         // Set up router with protocol handler
         let router = runtime.block_on(async {
@@ -97,7 +94,14 @@ impl Receiver {
             runtime,
             endpoint,
             state,
-            router: Some(router),
+            router: router,
+        })
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.runtime.block_on(async {
+            let state = self.state.lock().await;
+            state.is_some()
         })
     }
     
@@ -106,11 +110,12 @@ impl Receiver {
         let handle = self.runtime.spawn(async move {
             let state = state.lock().await;
             
-            if state.recv_streams.is_none() {
+            if state.is_none() {
                 return Err(anyhow::anyhow!("No receive streams available"));
             }
             
-            let stream = state.recv_streams.as_ref().unwrap()[tag].clone();
+            let state = state.as_ref().unwrap();
+            let stream = state.recv_streams[tag].clone();
             let mut stream = stream.lock().await;
             
             // Read the size of the message
@@ -129,7 +134,7 @@ impl Receiver {
         }
     }
 
-    pub fn recv(&mut self, tag: usize) -> Result<Vec<u8>> {
+    pub fn _recv(&mut self, tag: usize) -> Result<Vec<u8>> {
         self.irecv(tag).wait()
     }
 
@@ -137,19 +142,21 @@ impl Receiver {
         self.runtime.block_on(async {
             let state = self.state.lock().await;
             
-            // Close receive streams if they exist
-            if let Some(streams) = &state.recv_streams {
-                for stream in streams {
+            if let Some(state) = state.as_ref() {
+                // Close receive streams if they exist
+                for stream in &state.recv_streams {
                     let mut stream = stream.lock().await;
                     stream.stop(0u32.into())?;
                 }
+                
+                // Close connection if it exists
+                state.connection.closed().await;
             }
-            
-            // Close connection if it exists
-            if let Some(connection) = &state.connection {
-                connection.closed().await;
-            }
-            
+
+            // Shutdown router
+            self.router.shutdown().await?;
+
+            // Close endpoint
             self.endpoint.close().await;
             Ok(())
         })

@@ -24,8 +24,9 @@ fn run_sender() -> Result<()> {
     let num_micro_batches = 2;
 
     // Create sender
-    let addr = get_node_addr()?;
-    let mut sender = IrohSender::new(addr, num_micro_batches)?;
+    let mut sender = IrohSender::new()?;
+    sender.connect(get_node_addr()?, num_micro_batches)?;
+    println!("Sender is ready");
 
     // Send messages
     for token_idx in 0..num_new_tokens {
@@ -56,6 +57,10 @@ fn run_receiver() -> Result<()> {
 
     // Create receiver
     let mut receiver = Receiver::new(num_micro_batches)?;
+    while !receiver.is_ready() {
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    println!("Receiver is ready");
 
     // Receive messages
     for token_idx in 0..num_new_tokens {
