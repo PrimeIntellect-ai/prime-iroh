@@ -16,6 +16,10 @@ n0-future = "0.1.2"
 hex = "0.4.3"
 
 [[bin]]
+name = "node"
+path = "src/node.rs"
+
+[[bin]]
 name = "receiver"
 path = "src/receiver.rs"
 

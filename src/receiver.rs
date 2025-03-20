@@ -7,8 +7,19 @@ use tokio::task::JoinHandle;
 
 const ALPN: &[u8] = b"hello-world";
 
+pub struct RecvHandle {
+    runtime: Arc<Runtime>,
+    handle: JoinHandle<Result<Vec<u8>>>,
+}
+
+impl RecvHandle {
+    pub fn wait(self) -> Result<Vec<u8>> {
+        self.runtime.block_on(self.handle)?
+    }
+}
+
 pub struct IrohReceiver {
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
     endpoint: Endpoint,
     connection: Connection,
     recv_streams: Vec<Arc<Mutex<RecvStream>>>,
@@ -16,7 +27,7 @@ pub struct IrohReceiver {
 
 impl IrohReceiver {
     pub fn new(num_streams: usize) -> Result<Self> {
-        let runtime = Runtime::new()?;
+        let runtime = Arc::new(Runtime::new()?);
         let (endpoint, connection, recv_streams) = runtime.block_on(async {
             let endpoint = Endpoint::builder()
                 .discovery_n0()
@@ -36,9 +47,9 @@ impl IrohReceiver {
         Ok(Self { runtime, endpoint, connection, recv_streams })
     }
     
-    pub fn irecv(&mut self, tag: usize) -> JoinHandle<Result<Vec<u8>>> {
+    pub fn irecv(&mut self, tag: usize) -> RecvHandle {
         let stream = self.recv_streams[tag].clone();
-        self.runtime.spawn(async move {
+        let handle = self.runtime.spawn(async move {
             let mut stream = stream.lock().await;
             // Read the size of the message
             let mut size = [0; 4];
@@ -49,12 +60,15 @@ impl IrohReceiver {
             let mut msg = vec![0; size];
             stream.read_exact(&mut msg).await?;
             Ok(msg)
-        })
+        });
+        RecvHandle {
+            runtime: self.runtime.clone(),
+            handle,
+        }
     }
 
     pub fn recv(&mut self, tag: usize) -> Result<Vec<u8>> {
-        let handle = self.irecv(tag);
-        self.runtime.block_on(handle)?
+        self.irecv(tag).wait()
     }
 
     pub fn close(&mut self) -> Result<()> {
@@ -79,10 +93,11 @@ fn main() -> Result<()> {
     let mut receiver = IrohReceiver::new(num_micro_batches)?;
 
     // Receive messages
-    for _ in 0..num_new_tokens {
+    for token_idx in 0..num_new_tokens {
         for micro_batch_idx in 0..num_micro_batches {
-            let msg = receiver.recv(micro_batch_idx)?;
-            println!("Received msg: {:?}", String::from_utf8(msg).unwrap());
+            let recv_handle = receiver.irecv(micro_batch_idx);
+            let _ = recv_handle.wait();
+            println!("Received token idx {} micro batch idx {}", token_idx, micro_batch_idx);
         }
     }
 

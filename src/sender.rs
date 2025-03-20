@@ -7,8 +7,19 @@ use tokio::runtime::Runtime;
 
 const ALPN: &[u8] = b"hello-world";
 
+pub struct SendHandle {
+    runtime: Arc<Runtime>,
+    handle: JoinHandle<Result<()>>,
+}
+
+impl SendHandle {
+    pub fn wait(self) -> Result<()> {
+        self.runtime.block_on(self.handle)?
+    }
+}
+
 pub struct IrohSender {
-    runtime: Runtime,
+    runtime: Arc<Runtime>,
     endpoint: Endpoint,
     connection: Connection,
     send_streams: Vec<Arc<Mutex<SendStream>>>,
@@ -16,7 +27,7 @@ pub struct IrohSender {
 
 impl IrohSender {
     pub fn new(addr: NodeAddr, num_streams: usize) -> Result<Self> {
-        let runtime = Runtime::new()?;
+        let runtime = Arc::new(Runtime::new()?);
         let (endpoint, connection, send_streams) = runtime.block_on(async {
             let endpoint = Endpoint::builder().discovery_n0().bind().await?;
             let connection = endpoint.connect(addr, ALPN).await?;
@@ -30,20 +41,23 @@ impl IrohSender {
         Ok(Self { runtime, endpoint, connection, send_streams })
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> JoinHandle<Result<()>> {
-        let stream = self.send_streams[tag].clone(); // TODO: Can we avoid this clone? 
-        self.runtime.spawn(async move {
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> SendHandle {
+        let stream = self.send_streams[tag].clone();
+        let handle = self.runtime.spawn(async move {
             let mut stream = stream.lock().await;
             let size = msg.len() as u32;
             stream.write_all(&size.to_le_bytes()).await?;
             stream.write_all(&msg).await?;
             Ok(())
-        })
+        });
+        SendHandle {
+            runtime: self.runtime.clone(),
+            handle,
+        }
     }
 
     pub fn send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
-        let handle = self.isend(msg, tag);  
-        self.runtime.block_on(handle)?
+        self.isend(msg, tag).wait()
     }
 
     pub fn close(&mut self) -> Result<()> {
@@ -80,16 +94,19 @@ fn main() -> Result<()> {
 
     // Send messages
     for token_idx in 0..num_new_tokens {
+        let mut handles = Vec::new();
         for micro_batch_idx in 0..num_micro_batches {
-            // Do some work
-            std::thread::sleep(std::time::Duration::from_secs(1));
-
             // Send message
-            let msg = format!("token_idx: {}, micro_batch_idx: {}", token_idx, micro_batch_idx);
-            println!("Sending msg: {}", msg);
-            let _ = sender.send(msg.as_bytes().to_vec(), micro_batch_idx);
+            println!("Sending token idx {} micro batch idx {}", token_idx, micro_batch_idx);
+            let msg = vec![token_idx as u8; 1024 * 1024 * 50];
+            let send_handle = sender.isend(msg, micro_batch_idx);
+            handles.push(send_handle);
+        }
+        for handle in handles {
+            let _ = handle.wait();
         }
     }
+
 
     // Close the sender
     let _ = sender.close();
