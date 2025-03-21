@@ -1,8 +1,12 @@
 
-Start a Iroh node with
+In one terminal, start a node on rank 0 with
 
 ```bash
-cargo run --bin node
+cargo run --bin node 0
 ```
 
-This will spawn two subprocesses - one acting as a receiver, the other as a sender - and communicate some data between them before closing.
+In another terminal, start a node on rank 1 with
+
+```bash
+cargo run --bin node 1
+``` 
