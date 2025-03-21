@@ -40,6 +40,7 @@ impl Sender {
             let mut send_streams = Vec::with_capacity(num_streams);
             for _ in 0..num_streams {
                 let send_stream = Arc::new(Mutex::new(connection.open_uni().await?));
+                send_stream.lock().await.write_all(&(0u32.to_le_bytes())).await?;
                 send_streams.push(send_stream);
             }
             Ok::<SenderConnection, anyhow::Error>(SenderConnection::new(connection, send_streams))
@@ -51,6 +52,7 @@ impl Sender {
     pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> Work<()> {
         let stream = self.connection.as_ref().unwrap().send_streams[tag].clone();
         let handle = self.runtime.spawn(async move {
+            tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
             let mut stream = stream.lock().await;
             let size = msg.len() as u32;
             stream.write_all(&size.to_le_bytes()).await?;
@@ -63,7 +65,7 @@ impl Sender {
         }
     }
 
-    pub fn send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
+    pub fn _send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
         self.isend(msg, tag).wait()
     }
 

@@ -21,7 +21,7 @@ fn get_node_addr() -> Result<NodeAddr> {
 fn run_sender() -> Result<()> {
     // Setup
     let num_new_tokens = 4;
-    let num_micro_batches = 2;
+    let num_micro_batches = 16;
 
     // Create sender
     let mut node = Node::new(num_micro_batches)?;
@@ -56,7 +56,7 @@ fn run_sender() -> Result<()> {
 fn run_receiver() -> Result<()> {
     // Setup
     let num_new_tokens = 4;
-    let num_micro_batches = 2;
+    let num_micro_batches = 16;
 
     // Create receiver
     let mut node = Node::new(num_micro_batches)?;
@@ -102,7 +102,11 @@ fn input(prompt: &str) -> String {
 }
 
 fn run_node(rank: &str) -> Result<()> {
+    // Setup
+    let num_new_tokens = 4;
     let num_micro_batches = 2;
+
+    // Initialize and connect node
     let mut node = Node::new(num_micro_batches)?;
     println!("Connect to {}", node.node_id);
     let peer_id = input("Please enter the peer ID: ");
@@ -111,16 +115,33 @@ fn run_node(rank: &str) -> Result<()> {
     let peer_addr = NodeAddr::new(peer_id);
     node.connect(peer_addr)?;
     while !node.is_ready() {
-        std::thread::sleep(std::time::Duration::from_millis(1000));
+        std::thread::sleep(std::time::Duration::from_millis(100));
     }
     println!("Connected");
+
+    // Pipeline warmup
     if rank == "0" {
-        let msg = vec![0; 10];
-        node.isend(msg, 0).wait()?;
+        for token_idx in 0..num_new_tokens {
+            for micro_batch_idx in 0..num_micro_batches {
+                let msg = format!("token_idx: {}, micro_batch_idx: {}", token_idx, micro_batch_idx);
+                node.isend(msg.as_bytes().to_vec(), micro_batch_idx).wait()?;
+                let msg = node.irecv(micro_batch_idx).wait()?;
+                println!("[Rank 0] Received: {}", String::from_utf8(msg).unwrap());
+            }
+        }
     } else {
-        let msg = node.irecv(0).wait()?;
-        println!("Received message: {:?}", msg);
+        for token_idx in 0..num_new_tokens {
+            for micro_batch_idx in 0..num_micro_batches {
+                let msg = node.irecv(micro_batch_idx).wait()?;
+                println!("[Rank 1] Received: {}", String::from_utf8(msg).unwrap());
+                let msg = format!("token_idx: {}, micro_batch_idx: {}", token_idx, micro_batch_idx);
+                node.isend(msg.as_bytes().to_vec(), micro_batch_idx).wait()?;
+            }
+        }
+
     }
+
+    // Interleaved 
 
     node.close()?;
     Ok(())

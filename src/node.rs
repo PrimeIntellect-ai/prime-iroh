@@ -10,8 +10,6 @@ use anyhow::{Result, Error};
 pub struct Node {
     pub node_id: NodeId,
     num_micro_batches: usize,
-    runtime: Arc<Runtime>,
-    endpoint: Endpoint,
     receiver: Receiver,
     sender: Sender,
 }
@@ -26,7 +24,7 @@ impl Node {
         let node_id = endpoint.node_id();
         let receiver = Receiver::new(runtime.clone(), endpoint.clone(), num_micro_batches);
         let sender = Sender::new(runtime.clone(), endpoint.clone());
-        Ok(Self { node_id, num_micro_batches, runtime, endpoint, receiver, sender })
+        Ok(Self { node_id, num_micro_batches, receiver, sender })
     }
 
 

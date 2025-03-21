@@ -42,7 +42,9 @@ impl ProtocolHandler for ReceiverHandler {
             // Initialize receive streams
             let mut streams = Vec::with_capacity(num_streams);
             for _ in 0..num_streams {
-                let recv_stream = conn.accept_uni().await?;
+                let mut recv_stream = conn.accept_uni().await?;
+                let mut buffer = [0; 4]; // Buffer to hold the 0u32 value
+                recv_stream.read_exact(&mut buffer).await?;
                 streams.push(Arc::new(Mutex::new(recv_stream)));
             }
 
@@ -121,7 +123,7 @@ impl Receiver {
         }
     }
 
-    pub fn recv(&mut self, tag: usize) -> Result<Vec<u8>> {
+    pub fn _recv(&mut self, tag: usize) -> Result<Vec<u8>> {
         self.irecv(tag).wait()
     }
 
