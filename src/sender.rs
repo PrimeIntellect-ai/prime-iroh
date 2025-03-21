@@ -19,20 +19,19 @@ impl SenderConnection {
     }
 }
 
-pub struct IrohSender {
+pub struct Sender {
     runtime: Arc<Runtime>,
     endpoint: Endpoint,
     connection: Option<SenderConnection>,
 }
 
-impl IrohSender {
-    pub fn new() -> Result<Self> {
-        let runtime = Arc::new(Runtime::new()?);
-        let endpoint = runtime.block_on(async {
-            let endpoint = Endpoint::builder().discovery_n0().bind().await?;
-            Ok::<Endpoint, anyhow::Error>(endpoint)
-        })?;
-        Ok(Self { runtime, endpoint, connection: None })
+impl Sender {
+    pub fn new(runtime: Arc<Runtime>, endpoint: Endpoint) -> Self {
+        Self { runtime, endpoint, connection: None }
+    }
+
+    pub fn is_ready(&self) -> bool {
+        self.connection.is_some()
     }
 
     pub fn connect(&mut self, addr: NodeAddr, num_streams: usize) -> Result<()> {
@@ -64,17 +63,28 @@ impl IrohSender {
         }
     }
 
-    pub fn _send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
+    pub fn send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
         self.isend(msg, tag).wait()
     }
 
     pub fn close(&mut self) -> Result<()> {
         self.runtime.block_on(async {
-            for stream in self.connection.as_mut().unwrap().send_streams.iter() {
-                let mut stream = stream.lock().await;
-                stream.stopped().await?;
+            if let Some(connection) = self.connection.as_mut() {
+                // First flush all streams
+                for stream in connection.send_streams.iter() {
+                    let mut stream = stream.lock().await;
+                    stream.finish()?;  // Make sure all data is sent
+                    stream.stopped().await?;
+                }
+                
+                // Then gracefully close the connection
+                connection.connection.close(0u32.into(), b"close");
+                
+                // Wait a moment for the close to propagate
+                tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
             }
-            self.connection.as_ref().unwrap().connection.close(0u32.into(), b"close");
+            
+            // Finally close the endpoint
             self.endpoint.close().await;
             Ok(())
         })

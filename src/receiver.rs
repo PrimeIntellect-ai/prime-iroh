@@ -66,36 +66,23 @@ pub struct Receiver {
 }
 
 impl Receiver {
-    pub fn new(num_streams: usize) -> Result<Self> {
-        let runtime = Arc::new(Runtime::new()?);
-        
-        let endpoint = runtime.block_on(async {
-            let endpoint = Endpoint::builder()
-                .discovery_n0()
-                .alpns(vec![ALPN.to_vec()])
-                .bind()
-                .await?;
-            println!("cargo run sender {}", endpoint.node_id());
-            Ok::<Endpoint, anyhow::Error>(endpoint)
-        })?;
-
+    pub fn new(runtime: Arc<Runtime>, endpoint: Endpoint, num_streams: usize) -> Self {
         let state = Arc::new(Mutex::new(None));
         let handler = ReceiverHandler::new(num_streams, state.clone());
-
-        // Set up router with protocol handler
         let router = runtime.block_on(async {
             Router::builder(endpoint.clone())
                 .accept(ALPN, handler)
                 .spawn()
                 .await
-        })?;
+                .expect("Failed to spawn router")
+        });
 
-        Ok(Self {
+        Self {
             runtime,
             endpoint,
             state,
-            router: router,
-        })
+            router,
+        }
     }
 
     pub fn is_ready(&self) -> bool {
@@ -134,7 +121,7 @@ impl Receiver {
         }
     }
 
-    pub fn _recv(&mut self, tag: usize) -> Result<Vec<u8>> {
+    pub fn recv(&mut self, tag: usize) -> Result<Vec<u8>> {
         self.irecv(tag).wait()
     }
 

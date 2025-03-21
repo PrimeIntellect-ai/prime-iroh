@@ -1,12 +1,12 @@
 pub mod work;
 mod sender;
 mod receiver;
+mod node;
 
 use anyhow::Result;
 use iroh::{NodeId, NodeAddr};
 
-use sender::IrohSender;
-use receiver::Receiver;
+use node::Node;
 
 fn get_node_addr() -> Result<NodeAddr> {
     use std::env;
@@ -24,8 +24,8 @@ fn run_sender() -> Result<()> {
     let num_micro_batches = 2;
 
     // Create sender
-    let mut sender = IrohSender::new()?;
-    sender.connect(get_node_addr()?, num_micro_batches)?;
+    let mut node = Node::new(num_micro_batches)?;
+    node.connect(get_node_addr()?)?;
     println!("Sender is ready");
 
     // Send messages
@@ -35,7 +35,7 @@ fn run_sender() -> Result<()> {
             // Send message
             println!("Sending token idx {} micro batch idx {}", token_idx, micro_batch_idx);
             let msg = vec![token_idx as u8; 1024 * 1024 * 50];
-            let send_handle = sender.isend(msg, micro_batch_idx);
+            let send_handle = node.isend(msg, micro_batch_idx);
             handles.push(send_handle);
         }
         for handle in handles {
@@ -45,7 +45,7 @@ fn run_sender() -> Result<()> {
 
 
     // Close the sender
-    let _ = sender.close();
+    node.close()?;
 
     Ok(())
 }
@@ -56,8 +56,9 @@ fn run_receiver() -> Result<()> {
     let num_micro_batches = 2;
 
     // Create receiver
-    let mut receiver = Receiver::new(num_micro_batches)?;
-    while !receiver.is_ready() {
+    let mut node = Node::new(num_micro_batches)?;
+    println!("cargo run sender {}", node.node_id);
+    while !node.can_recv() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     println!("Receiver is ready");
@@ -66,7 +67,7 @@ fn run_receiver() -> Result<()> {
     for token_idx in 0..num_new_tokens {
         let mut handles = Vec::new();
         for micro_batch_idx in 0..num_micro_batches {
-            let recv_handle = receiver.irecv(micro_batch_idx);
+            let recv_handle = node.irecv(micro_batch_idx);
             handles.push(recv_handle);
         }
         for (micro_batch_idx, handle) in handles.into_iter().enumerate() {
@@ -76,7 +77,7 @@ fn run_receiver() -> Result<()> {
     }
 
     // Close the receiver
-    receiver.close()?;
+    node.close()?;
 
     Ok(())
 }
