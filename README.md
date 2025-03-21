@@ -1,12 +1,13 @@
+# Iroh Python Bindings
 
-In one terminal, start a node on rank 0 with
+These are Python bindings multi-stream, P2P connections using the Iroh library.
+
+To test Rust run 
 
 ```bash
-cargo run node 0
+cargo test
 ```
 
-In another terminal, start a node on rank 1 with
+To test the python bindings run
 
-```bash
-cargo run node 1
-``` 
+`uv run pytest`.
