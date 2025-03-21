@@ -1,0 +1,33 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "iroh_py"
+version = "0.1.0"
+description = "Python bindings for Iroh P2P library"
+requires-python = ">=3.12"
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+]
+
+[tool.maturin]
+features = ["extension-module"]
+generate-stubs = true
+release = true
+
+[tool.uv]
+dev-dependencies = ["pytest", "maturin"]
+cache-keys = [
+    { file = "pyproject.toml" },
+    { file = "Cargo.toml" },
+    { file = "**/*.rs" },
+]
+
+[dependency-groups]
+test = [
+    "pytest>=8.3.5",
+]

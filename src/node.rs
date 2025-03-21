@@ -1,4 +1,4 @@
-use crate::work::Work;
+use crate::work::{SendWork, RecvWork};
 use crate::sender::Sender;
 use crate::receiver::Receiver;
 
@@ -60,11 +60,11 @@ impl Node {
         self.can_recv() && self.can_send()
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> Work<()> {
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> SendWork {
         self.sender.isend(msg, tag)
     }
 
-    pub fn irecv(&mut self, tag: usize) -> Work<Vec<u8>> {
+    pub fn irecv(&mut self, tag: usize) -> RecvWork {
         self.receiver.irecv(tag)
     }
 

@@ -5,7 +5,7 @@ use tokio::sync::Mutex;
 use tokio::runtime::Runtime;
 use iroh::protocol::{ProtocolHandler, Router};
 
-use crate::work::Work;
+use crate::work::RecvWork;
 
 const ALPN: &[u8] = b"hello-world";
 
@@ -94,7 +94,7 @@ impl Receiver {
         })
     }
     
-    pub fn irecv(&mut self, tag: usize) -> Work<Vec<u8>> {
+    pub fn irecv(&mut self, tag: usize) -> RecvWork {
         let state = self.state.clone();
         let handle = self.runtime.spawn(async move {
             let state = state.lock().await;
@@ -117,14 +117,15 @@ impl Receiver {
             stream.read_exact(&mut msg).await?;
             Ok(msg)
         });
-        Work {
+        RecvWork {
             runtime: self.runtime.clone(),
-            handle,
+            handle: handle,
         }
     }
 
     pub fn _recv(&mut self, tag: usize) -> Result<Vec<u8>> {
-        self.irecv(tag).wait()
+        let msg = self.irecv(tag).wait().unwrap();
+        Ok(msg)
     }
 
     pub fn close(&mut self) -> Result<()> {

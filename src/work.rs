@@ -3,13 +3,32 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 use tokio::task::JoinHandle;
 
-pub struct Work<T> {
+pub struct SendWork {
     pub runtime: Arc<Runtime>,
-    pub handle: JoinHandle<Result<T>>,
+    pub handle: JoinHandle<Result<()>>,
 }
 
-impl<T> Work<T> {
-    pub fn wait(self) -> Result<T> {
+impl SendWork {
+    pub fn new(runtime: Arc<Runtime>, handle: JoinHandle<Result<()>>) -> Self {
+        Self { runtime, handle }
+    }
+
+    pub fn wait(self) -> Result<()> {
+        self.runtime.block_on(self.handle)?
+    }
+}
+
+pub struct RecvWork {
+    pub runtime: Arc<Runtime>,
+    pub handle: JoinHandle<Result<Vec<u8>>>,
+}
+
+impl RecvWork {
+    pub fn new(runtime: Arc<Runtime>, handle: JoinHandle<Result<Vec<u8>>>) -> Self {
+        Self { runtime, handle }
+    }
+
+    pub fn wait(self) -> Result<Vec<u8>> {
         self.runtime.block_on(self.handle)?
     }
 }
@@ -25,10 +44,10 @@ mod tests {
     fn test_work_success() {
         let runtime = Arc::new(Runtime::new().unwrap());
         let handle = runtime.spawn(async {
-            Ok(42)
+            Ok(b"test".to_vec())
         });
         
-        let work = Work {
+        let work = RecvWork {
             runtime,
             handle,
         };
@@ -36,7 +55,7 @@ mod tests {
         let result = work.wait();
         
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.unwrap(), b"test".to_vec());
     }
 
     #[test]
@@ -46,7 +65,7 @@ mod tests {
             Err(Error::msg("test error"))
         });
         
-        let work: Work<()> = Work {
+        let work = RecvWork {
             runtime,
             handle,
         };
@@ -62,10 +81,10 @@ mod tests {
         let runtime = Arc::new(Runtime::new().unwrap());
         let handle = runtime.spawn(async {
             sleep(Duration::from_millis(100)).await;
-            Ok(100)
+            Ok(b"test".to_vec())
         });
 
-        let work = Work {
+        let work = RecvWork {
             runtime,
             handle,
         };
@@ -75,7 +94,7 @@ mod tests {
         let duration = start.elapsed();
 
         assert!(result.is_ok());
-        assert_eq!(result.unwrap(), 100);
+        assert_eq!(result.unwrap(), b"test".to_vec());
         assert!(duration >= Duration::from_millis(100));
     }
 }

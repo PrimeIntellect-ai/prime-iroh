@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::runtime::Runtime;
 
-use crate::work::Work;
+use crate::work::SendWork;
 
 const ALPN: &[u8] = b"hello-world";
 
@@ -50,7 +50,7 @@ impl Sender {
         Ok(())
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> Work<()> {
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> SendWork {
         let stream = self.connection.as_ref().unwrap().send_streams[tag].clone();
         let handle = self.runtime.spawn(async move {
             tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
@@ -60,14 +60,15 @@ impl Sender {
             stream.write_all(&msg).await?;
             Ok(())
         });
-        Work {
+        SendWork {
             runtime: self.runtime.clone(),
-            handle,
+            handle: handle,
         }
     }
 
     pub fn _send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
-        self.isend(msg, tag).wait()
+        self.isend(msg, tag).wait()?;
+        Ok(())
     }
 
     pub fn close(&mut self) -> Result<()> {

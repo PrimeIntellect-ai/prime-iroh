@@ -1,11 +1,12 @@
 [package]
-name = "iroh-py"
+name = "iroh_py"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
 name = "iroh_py"
 path = "src/lib.rs"
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 anyhow = "1.0.97"
@@ -13,3 +14,7 @@ iroh = "0.34.0"
 tokio = "1.44.1"
 rand = "0.8.5"
 hex = "0.4.3"
+pyo3 = { version = "0.24.0", features = ["extension-module"] }
+
+[features]
+extension-module = []
