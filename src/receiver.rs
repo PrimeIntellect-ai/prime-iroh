@@ -151,3 +151,21 @@ impl Receiver {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_receiver_creation() -> Result<()> {
+        let runtime = Arc::new(Runtime::new()?);
+        let endpoint = runtime.block_on(async {
+            Endpoint::builder().discovery_n0().bind().await
+        })?;
+        
+        let receiver = Receiver::new(runtime, endpoint, 1);
+        assert!(!receiver.is_ready());
+        
+        Ok(())
+    }
+}

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use iroh::{NodeAddr, Endpoint, endpoint::{Connection, SendStream}};
+use iroh::{NodeId, NodeAddr, Endpoint, endpoint::{Connection, SendStream}};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::runtime::Runtime;
@@ -34,8 +34,9 @@ impl Sender {
         self.connection.is_some()
     }
 
-    pub fn connect(&mut self, addr: NodeAddr, num_streams: usize) -> Result<()> {
+    pub fn connect(&mut self, node_id_str: &str, num_streams: usize) -> Result<()> {
         let connection = self.runtime.block_on(async {
+            let addr = self.get_node_addr(node_id_str)?;
             let connection = self.endpoint.connect(addr, ALPN).await?;
             let mut send_streams = Vec::with_capacity(num_streams);
             for _ in 0..num_streams {
@@ -91,4 +92,28 @@ impl Sender {
             Ok(())
         })
     }
+
+    fn get_node_addr(&self, node_id_str: &str) -> Result<NodeAddr> {
+        let bytes = hex::decode(node_id_str)?;
+        let node_id = NodeId::from_bytes(bytes.as_slice().try_into()?)?;
+        Ok(NodeAddr::new(node_id))
+    }
 } 
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    
+    #[test]
+    fn test_sender_creation() -> Result<()> {
+        let runtime = Arc::new(Runtime::new()?);
+        let endpoint = runtime.block_on(async {
+            Endpoint::builder().discovery_n0().bind().await
+        })?;
+        
+        let sender = Sender::new(runtime, endpoint);
+        assert!(!sender.is_ready());
+        
+        Ok(())
+    }
+}
