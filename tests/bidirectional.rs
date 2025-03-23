@@ -3,53 +3,6 @@ use iroh_py::node::Node;
 use std::process::{Command, Stdio};
 use std::io::{BufRead, BufReader};
 
-fn connect_nodes() -> Result<()> {
-    let mut node = Node::with_seed(2, Some(42))?;
-    let node_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
-    node.connect(node_id)?;
-    while !node.is_ready() {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    assert!(node.can_recv());
-    assert!(node.can_send());
-    assert!(node.is_ready());
-
-    Ok(())
-}
-
-fn send_single_message() -> Result<()> {
-    let mut node = Node::with_seed(2, Some(42))?;
-    let node_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
-    node.connect(node_id)?;
-    while !node.is_ready() {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let sent = b"Hello, world!".to_vec();
-    node.isend(sent.clone(), 0).wait()?;
-    let rcvd = node.irecv(0).wait()?;
-    assert_eq!(sent, rcvd);
-    Ok(())
-}
-
-fn send_multiple_messages() -> Result<()> {
-    let mut node = Node::with_seed(2, Some(42))?;
-    let node_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
-    node.connect(node_id)?;
-    while !node.is_ready() {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-    }
-    let num_messages = 10;
-    for i in 0..num_messages {
-        let sent = format!("Message {}", i).as_bytes().to_vec();
-        node.isend(sent.clone(), 0).wait()?;
-        println!("Sent: {:?}", sent);
-        let rcvd = node.irecv(0).wait()?;
-        println!("Received: {:?}", rcvd);
-        assert_eq!(sent, rcvd);
-    }
-    Ok(())
-}
-
 fn run_node(seed: u64, tag: &str) -> Result<()> {
     let mut node = Node::with_seed(2, Some(seed))?;
     let peer_id = if seed == 42 {
@@ -77,7 +30,7 @@ fn run_node(seed: u64, tag: &str) -> Result<()> {
     for i in 0..num_messages {
         let sent = format!("Message {} from {}", i, tag).as_bytes().to_vec();
         println!("{} sending: {:?}", tag, std::str::from_utf8(&sent).unwrap());
-        node.isend(sent.clone(), 0).wait()?;
+        node.isend(sent.clone(), 0, None).wait()?;
         
         let rcvd = node.irecv(0).wait()?;
         println!("{} received: {:?}", tag, std::str::from_utf8(&rcvd).unwrap());

@@ -123,11 +123,6 @@ impl Receiver {
         }
     }
 
-    pub fn _recv(&mut self, tag: usize) -> Result<Vec<u8>> {
-        let msg = self.irecv(tag).wait().unwrap();
-        Ok(msg)
-    }
-
     pub fn close(&mut self) -> Result<()> {
         self.runtime.block_on(async {
             let state = self.state.lock().await;

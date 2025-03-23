@@ -54,7 +54,7 @@ fn main() -> Result<()> {
             // Send 5 messages
             for i in 0..5 {
                 let msg = format!("Message {}", i);
-                node.isend(msg.as_bytes().to_vec(), 0).wait()?;
+                node.isend(msg.as_bytes().to_vec(), 0, Some(1000)).wait()?;
                 println!("Sending: {:?}", msg);
             }
             // Clean up

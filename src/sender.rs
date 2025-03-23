@@ -50,24 +50,23 @@ impl Sender {
         Ok(())
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> SendWork {
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> SendWork {
         let stream = self.connection.as_ref().unwrap().send_streams[tag].clone();
         let handle = self.runtime.spawn(async move {
+            if let Some(latency) = latency {
+                tokio::time::sleep(tokio::time::Duration::from_millis(latency as u64)).await;
+            }
             let mut stream = stream.lock().await;
             let size = msg.len() as u32;
             stream.write_all(&size.to_le_bytes()).await?;
             stream.write_all(&msg).await?;
+            
             Ok(())
         });
         SendWork {
             runtime: self.runtime.clone(),
             handle: handle,
         }
-    }
-
-    pub fn _send(&mut self, msg: Vec<u8>, tag: usize) -> Result<()> {
-        self.isend(msg, tag).wait()?;
-        Ok(())
     }
 
     pub fn close(&mut self) -> Result<()> {

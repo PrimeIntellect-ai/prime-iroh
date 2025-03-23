@@ -55,7 +55,7 @@ def send_recv(q: Queue, seed: int, peer_id: str):
             time.sleep(1)
         assert node.can_recv() and node.can_send() and node.is_ready()
         sent = b"Hello, world!"
-        node.isend(sent, 0).wait()
+        node.isend(sent, 0, latency=0).wait()
         rcvd = node.irecv(0).wait()
         assert rcvd == sent
         # Signal success

@@ -158,12 +158,13 @@ impl Node {
     /// Args:
     ///     msg: The message to send
     ///     tag: The tag to send the message to
+    ///     latency: Optional latency in milliseconds (default: 0)
     ///
     /// Returns:
     ///     A SendWork object
-    #[pyo3(text_signature = "(msg, tag)")]
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> PyResult<SendWork> {
-        Ok(SendWork::new(self.inner.isend(msg, tag)))
+    #[pyo3(text_signature = "(msg, tag, latency=None)")]
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> PyResult<SendWork> {
+        Ok(SendWork::new(self.inner.isend(msg, tag, latency)))
     }
 
     /// Receive a message from a Node with a given tag.

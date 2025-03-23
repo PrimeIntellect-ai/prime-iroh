@@ -60,8 +60,8 @@ impl Node {
         self.can_recv() && self.can_send()
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize) -> SendWork {
-        self.sender.isend(msg, tag)
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> SendWork {
+        self.sender.isend(msg, tag, latency)
     }
 
     pub fn irecv(&mut self, tag: usize) -> RecvWork {
