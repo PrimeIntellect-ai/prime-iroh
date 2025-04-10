@@ -1,87 +1,71 @@
 use anyhow::Result;
 use iroh_py::node::Node;
-use std::process::{Command, Stdio};
-use std::io::{BufRead, BufReader};
+use std::time::Duration;
 
-fn run_node(seed: u64, tag: &str) -> Result<()> {
-    let mut node = Node::with_seed(2, Some(seed))?;
-    let peer_id = if seed == 42 {
-        // Connect to node with seed 43
-        "da1d3d33264bebd2ff215473064fb11f4c7ceb4b820a3868c2c792d27e205691"
-    } else {
-        // Connect to node with seed 42
-        "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454"
-    };
-    
-    println!("{} connecting to {}", tag, peer_id);
-    node.connect(peer_id)?;
-    
-    while !node.is_ready() {
-        std::thread::sleep(std::time::Duration::from_millis(100));
-        println!("{} waiting for connection...", tag);
-    }
-    
-    println!("{} connected and ready", tag);
-    assert!(node.can_recv());
-    assert!(node.can_send());
-    
-    // Send and receive multiple messages
-    let num_messages = 10;
-    for i in 0..num_messages {
-        let sent = format!("Message {} from {}", i, tag).as_bytes().to_vec();
-        println!("{} sending: {:?}", tag, std::str::from_utf8(&sent).unwrap());
-        node.isend(sent.clone(), 0, None).wait()?;
+const NUM_MESSAGES: usize = 5;
+const NUM_STREAMS: usize = 1;
+
+struct BidirectionalTest {
+    node0: Node,
+    node1: Node,
+}
+
+impl BidirectionalTest {
+    fn new() -> Result<Self> {
+        // Initialize nodes
+        let mut node0 = Node::with_seed(NUM_STREAMS, None)?;
+        let mut node1 = Node::with_seed(NUM_STREAMS, None)?;
         
-        let rcvd = node.irecv(0).wait()?;
-        println!("{} received: {:?}", tag, std::str::from_utf8(&rcvd).unwrap());
+        // Wait for nodes to be ready
+        std::thread::sleep(Duration::from_millis(1000));
+
+        // Connect bidirectionally
+        node0.connect(node1.node_id())?;
+        node1.connect(node0.node_id())?;
+        
+        // Wait for connection to be established
+        while !node0.can_recv() || !node1.can_send() {
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        
+        Ok(Self { node0, node1 })
     }
-    
-    Ok(())
+
+    fn test_communication(&mut self) -> Result<()> {
+        for i in 0..NUM_MESSAGES {
+            self.node0.isend(format!("Message {} from node 0", i).as_bytes().to_vec(), 0, None);
+            self.node1.isend(format!("Message {} from node 1", i).as_bytes().to_vec(), 0, None);
+
+            let received_from_node0 = self.node1.irecv(0).wait()?;
+            let received_from_node1 = self.node0.irecv(0).wait()?;
+
+            assert_eq!(received_from_node0, format!("Message {} from node 0", i).as_bytes().to_vec());
+            assert_eq!(received_from_node1, format!("Message {} from node 1", i).as_bytes().to_vec());
+        }
+
+        Ok(())
+    }
 }
 
 mod tests {
     use super::*;
 
     #[test]
-    fn test_bidirectional_connection() -> Result<()> {
-        // Start two nodes as subprocesses with different seeds
-        let node1 = Command::new(std::env::current_exe()?)
-            .arg("--nocapture")
-            .arg("--test-threads=1")
-            .arg("run_node_42")
-            .stdout(Stdio::piped())
-            .spawn()?;
+    fn test_bidirectional_communication() -> Result<()> {
+        let mut test = BidirectionalTest::new()?;
         
-        let node2 = Command::new(std::env::current_exe()?)
-            .arg("--nocapture")
-            .arg("--test-threads=1")
-            .arg("run_node_43")
-            .stdout(Stdio::piped())
-            .spawn()?;
-        
-        // Monitor output
-        let stdout1 = BufReader::new(node1.stdout.unwrap());
-        let stdout2 = BufReader::new(node2.stdout.unwrap());
-        
-        for line in stdout1.lines() {
-            println!("Node1: {}", line?);
-        }
-        
-        for line in stdout2.lines() {
-            println!("Node2: {}", line?);
-        }
+        // Test basic connection state
+        assert!(test.node0.is_ready());
+        assert!(test.node1.is_ready());
+        assert!(test.node0.can_send());
+        assert!(test.node1.can_send());
+        assert!(test.node0.can_recv());
+        assert!(test.node1.can_recv());
 
+        // Test bidirectional communication
+        test.test_communication()?;
+        
         Ok(())
-    }
-    
-    #[test]
-    fn run_node_42() -> Result<()> {
-        run_node(42, "Node42")
-    }
-    
-    #[test]
-    fn run_node_43() -> Result<()> {
-        run_node(43, "Node43")
     }
 }
 
