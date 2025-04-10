@@ -75,15 +75,15 @@ impl Node {
     /// Create a new Node with a given number of micro-batches.
     ///
     /// Args:
-    ///     num_micro_batches: The number of micro-batches to use
+    ///     num_streams: The number of parallel streams to use
     ///
     /// Returns:
     ///     A new Node object
     #[new]
-    #[pyo3(text_signature = "(num_micro_batches)")]
-    pub fn new(num_micro_batches: usize) -> PyResult<Self> {
+    #[pyo3(text_signature = "(num_streams)")]
+    pub fn new(num_streams: usize) -> PyResult<Self> {
         Ok(Self {
-            inner: IrohNode::new(num_micro_batches).map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            inner: IrohNode::new(num_streams).map_err(|e| PyRuntimeError::new_err(e.to_string()))?
         })
     }
 
@@ -92,16 +92,16 @@ impl Node {
     /// debugging purposes.
     ///
     /// Args:
-    ///     num_micro_batches: The number of micro-batches to use
+    ///     num_streams: The number of parallel streams to use
     ///     seed: The seed to use for the Node
     ///
     /// Returns:
     ///     A new Node object
     #[staticmethod]
-    #[pyo3(text_signature = "(num_micro_batches, seed)")]
-    pub fn with_seed(num_micro_batches: usize, seed: Option<u64>) -> PyResult<Self> {
+    #[pyo3(text_signature = "(num_streams, seed)")]
+    pub fn with_seed(num_streams: usize, seed: Option<u64>) -> PyResult<Self> {
         Ok(Self {
-            inner: IrohNode::with_seed(num_micro_batches, seed).map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            inner: IrohNode::with_seed(num_streams, seed).map_err(|e| PyRuntimeError::new_err(e.to_string()))?
         })
     }
 

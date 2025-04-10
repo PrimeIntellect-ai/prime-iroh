@@ -11,17 +11,17 @@ use rand::rngs::StdRng;
 
 pub struct Node {
     node_id: String,
-    num_micro_batches: usize,
+    num_streams: usize,
     receiver: Receiver,
     sender: Sender,
 }
 
 impl Node {
-    pub fn new(num_micro_batches: usize) -> Result<Self> {
-        Self::with_seed(num_micro_batches, None)
+    pub fn new(num_streams: usize) -> Result<Self> {
+        Self::with_seed(num_streams, None)
     }
 
-    pub fn with_seed(num_micro_batches: usize, seed: Option<u64>) -> Result<Self> {
+    pub fn with_seed(num_streams: usize, seed: Option<u64>) -> Result<Self> {
         let runtime = Arc::new(Runtime::new()?);
         let endpoint = runtime.block_on(async {
             let mut builder = Endpoint::builder().discovery_n0();
@@ -34,9 +34,9 @@ impl Node {
             Ok::<Endpoint, Error>(endpoint)
         })?;
         let node_id = endpoint.node_id().to_string();
-        let receiver = Receiver::new(runtime.clone(), endpoint.clone(), num_micro_batches);
+        let receiver = Receiver::new(runtime.clone(), endpoint.clone(), num_streams);
         let sender = Sender::new(runtime.clone(), endpoint.clone());
-        Ok(Self { node_id, num_micro_batches, receiver, sender })
+        Ok(Self { node_id, num_streams, receiver, sender })
     }
 
     pub fn node_id(&self) -> &str {
@@ -44,7 +44,7 @@ impl Node {
     }
 
     pub fn connect(&mut self, node_id_str: &str) -> Result<()> {
-        self.sender.connect(node_id_str, self.num_micro_batches)?;
+        self.sender.connect(node_id_str, self.num_streams)?;
         Ok(())
     }
 

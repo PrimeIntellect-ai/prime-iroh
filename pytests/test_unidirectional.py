@@ -8,13 +8,13 @@ NUM_STREAMS = 1
 class UnidirectionalTest:
     def __init__(self):
         # Initialize receiver
-        self.receiver = Node(num_micro_batches=NUM_STREAMS)
+        self.receiver = Node(num_streams=NUM_STREAMS)
         
         # Wait for receiver to be ready
         time.sleep(1)
         
         # Initialize sender
-        self.sender = Node(num_micro_batches=NUM_STREAMS)
+        self.sender = Node(num_streams=NUM_STREAMS)
         self.sender.connect(self.receiver.node_id())
         
         # Wait for connection to be established
@@ -26,32 +26,26 @@ class UnidirectionalTest:
         for i in range(NUM_MESSAGES):
             # Send message
             msg = f"Sync message {i}"
-            self.sender.isend(msg.encode(), 0, None).wait()
-            print(f"Sender sent: {msg}")
+            self.sender.isend(msg.encode(), tag=0, latency=None).wait()
             
             # Receive message
-            received = self.receiver.irecv(0).wait()
-            received_str = received.decode()
-            print(f"Receiver received: {received_str}")
+            recv = self.receiver.irecv(tag=0).wait().decode()
             
             # Verify received message matches sent message
-            assert received_str == msg
+            assert recv == msg
 
     def test_async_messages(self):
         # Send messages asynchronously
         for i in range(NUM_MESSAGES):
-            # Send message 
+            # Send async and receive sync
             msg = f"Async message {i}"
-            send_work = self.sender.isend(msg.encode(), 0, None)
-
-            # Receive message
-            received = self.receiver.irecv(0).wait()
-            received_str = received.decode()
+            sent = self.sender.isend(msg.encode(), tag=0, latency=None)
+            recv = self.receiver.irecv(tag=0).wait().decode()
 
             # Verify received message matches sent message
-            assert received_str == msg
+            assert msg == recv
 
-            send_work.wait()
+            sent.wait()
 
 def test_unidirectional_communication():
     test = UnidirectionalTest()
