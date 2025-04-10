@@ -15,12 +15,10 @@ P2P Pipeline Parallel Communication
 
 This codebase exposes a Python interface for reliable, asynchronous peer-to-peer communication built upon [Iroh](https://github.com/iroh-project/iroh). The core classes exposed are:
 
-- `Sender`: A class that allows you to send messages to a remote peer.
-- `Receiver`: A class that allows you to receive messages from a remote peer.
+- `Node`: A class combining a single-peer sender/ receiver in one class, allowing to send to exactly *one* and receive from exactly *one* (potentially different) peer. The class allows for concurrent communication by opening multiple, consistent streams.
 - `Work`: A class representing the future of an asynchronous operation, that can be awaited using a `wait` method.
-- `Node`: A sender/ receiver in one class, that allows to send to exactly *one* and receive from exactly *one* (potentially different) peer. The class allows for concurrent communication by opening multiple, consistent streams.
 
-Because we are building on top of Iroh, we get many nice networking features out of the box. Most importantly, the library guarantees reliable P2P connections between nodes, trying to establish directions connections whenever possible, and falling back to NAT-hole punching and relaying when necessary. The API is designed to around the way asynchronous communication is handled in `torch.distributed`, i.e. exposing `isend` and `irecv` that return work objects that can be awaited using a `wait` method. This allows for a clean integration with the rest of the PyTorch ecosystem. For an example of this check out our research codebase for [pipeline parallel inference](https://github.com/primeintellect-ai/pipelined-gpt-fast) that uses this library for P2P communication across geographically distributed nodes.
+Because we are building on top of Iroh, we get many nice networking features out of the box. Most importantly, the library guarantees reliable P2P connections between nodes, trying to establish directions connections whenever possible, and falling back to NAT-hole punching and relaying when necessary. The API is mirroring the way asynchronous communication is handled in `torch.distributed`, i.e. exposing `isend` and `irecv` that return work objects that can be awaited using a `wait` method. This allows for a clean integration with the rest of the PyTorch ecosystem. For an example of this check out our research codebase for [pipeline parallel inference](https://github.com/primeintellect-ai/pipelined-gpt-fast) that uses this library for P2P communication across geographically distributed nodes.
 
 
 ## Installation
@@ -53,25 +51,56 @@ To build the Rust backend run `cargo build`, to build the Python bindings run `u
 
 ## Usage
 
-You can find the basic usage examples in the `examples` directory in Rust. For example, to run a simple uni-directional send/ receive operation, you can use the following code:
+You can find the basic usage examples in the `examples` directory showing unidirectional and bidirectional communication patterns in Rust. 
+
+Run unidirectional communication example:
 
 ```bash
 cargo run --example unidirectional
 ```
 
+Run bidirectional communication example:
+
+```bash
+cargo run --example bidirectional
+```
+
+For Python usage, you would use the node class as follows:
+
+```python
+# On the receiver side
+from iroh_py import Node
+
+# Initialize the node
+node = Node(num_streams=1)
+print(f"Connect to: {node.node_id()}")
+
+# Wait for sender to connect
+while not node.can_recv():
+    time.sleep(0.1)
+
+# Receive message
+msg = node.irecv(tag=0).wait()
+```
+
+```python
+# On the sender side
+from iroh_py import Node
+
+# Initialize the node
+node = Node(num_streams=1)
+
+# Connect to the receiver
+node.connect(peer_id=...)
+
+# Wait for connection to be established
+while not node.can_send():
+    time.sleep(0.1)
+
+# Send message
+node.isend("Hello, world!".encode(), tag=0, latency=None).wait()
+```
+
 ## Tests
 
-We include simple tests for both the Rust backend and the Python bindings.
-
-To test the Rust backend run
-
-```bash
-cargo test
-```
-
-To test the Python bindings run
-
-```bash
-uv run pytest
-```
-
+We include unit tests and integration tests for the Rust backend which can be run using `cargo test`. The integration tests for uni- and bidirectional communication are also ported to Python and can be run using `uv run pytest`.
