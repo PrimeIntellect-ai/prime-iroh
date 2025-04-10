@@ -1,7 +1,13 @@
 /*
- * This example demonstrates a simple unidirectional communication between two nodes.
+ * This example demonstrates simple unidirectional communication between two nodes - one sender and one receiver.
  * 
- * `cargo run --example unidirectional receiver` - then `cargo run --example unidirectional sender`
+ * Run the receiver:
+ *
+ * `cargo run --example unidirectional receiver`
+ * 
+ * Run the sender:
+ *
+ * `cargo run --example unidirectional sender`
  */
 use std::env;
 use iroh_py::node::Node;
@@ -16,55 +22,59 @@ fn main() -> Result<()> {
         return Err(anyhow!("Usage: {} [sender|receiver]", args[0]));
     }
 
+    let num_streams = 1;
+    let num_messages = 5;
     let mode = &args[1];
+    let mut node: Node;
     match mode.as_str() {
         "receiver" => {
-            println!("Running in receiver mode");
+            // Run the receiver
+            println!("Running receiver");
+            node = Node::with_seed(num_streams, Some(42))?;
+
+            // Wait until sender connects
             println!("Waiting for sender to connect...");
-            
-            let mut node = Node::with_seed(1, Some(42))?;
-            // Wait until we can receive
             while !node.can_recv() {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
             println!("Ready to receive!");
 
-            // Receive 5 messages
-            for i in 0..5 {
-                let msg = node.irecv(0).wait()?;
-                println!("Received message {}: {:?}", i, String::from_utf8_lossy(&msg));
+            // Receive messages
+            for i in 0..num_messages {
+                let bytes = node.irecv(0).wait()?;
+                let msg = String::from_utf8_lossy(&bytes);
+                println!("Received message {}: {:?}", i+1, msg);
             }
-            // Clean up
-            node.close().unwrap();
         }
         "sender" => {
-            println!("Running in sender mode");
-            let mut node = Node::with_seed(1, None)?;
-            let receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
+            // Run the sender
+            println!("Running sender");
+            node = Node::with_seed(num_streams, None)?;
 
+            // Connect to receiver
             println!("Connecting to receiver...");
+            let receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
             node.connect(receiver_id)?;
-            
-            // Wait until we can send
             while !node.can_send() {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
             println!("Connected and ready to send!");
 
-            // Send 5 messages
-            for i in 0..5 {
-                let msg = format!("Message {}", i);
-                node.isend(msg.as_bytes().to_vec(), 0, Some(1000)).wait()?;
-                println!("Sending: {:?}", msg);
+            // Send messages
+            for i in 0..num_messages {
+                let msg = "Hello from sender";
+                let bytes = msg.as_bytes().to_vec();
+                node.isend(bytes, 0, Some(1000)).wait()?; // 1s artificial latency
+                println!("Sent message {}: {:?}", i+1, msg);
             }
-            // Clean up
-            node.close().unwrap();
         }
         _ => {
-            println!("Invalid mode. Use 'sender' or 'receiver'");
+            return Err(anyhow!("Invalid mode. Use 'sender' or 'receiver'"));
         }
     }
 
+    // Clean up
+    node.close().unwrap();
 
     Ok(())
 }
