@@ -3,9 +3,9 @@ requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "iroh_py"
+name = "prime_iroh"
 version = "0.1.0"
-description = "Python bindings for Iroh P2P library"
+description = "Python bindings for prime-iroh (P2P Pipeline Parallel Communication Backend)"
 requires-python = ">=3.12"
 classifiers = [
     "Programming Language :: Python :: 3",

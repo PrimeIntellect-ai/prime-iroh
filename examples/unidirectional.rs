@@ -10,7 +10,7 @@
  * `cargo run --example unidirectional sender`
  */
 use std::env;
-use iroh_py::node::Node;
+use prime_iroh::node::Node;
 use anyhow::anyhow;
 use anyhow::Result;
 

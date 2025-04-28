@@ -8,7 +8,7 @@
 <p align="center">
 
 <h3 align="center">
-P2P Pipeline Parallel Communication
+PRIME-IROH: P2P Pipeline Parallel Communication
 </h3>
 
 ---
@@ -18,7 +18,7 @@ This codebase exposes a Python interface for reliable, asynchronous peer-to-peer
 - `Node`: A class combining a single-peer sender/ receiver in one class, allowing to send to exactly *one* and receive from exactly *one* (potentially different) peer. The class allows for concurrent communication by opening multiple, consistent streams.
 - `Work`: A class representing the future of an asynchronous operation, that can be awaited using a `wait` method.
 
-Because we are building on top of Iroh, we get many nice networking features out of the box. Most importantly, the library guarantees reliable P2P connections between nodes, trying to establish directions connections whenever possible, and falling back to NAT-hole punching and relaying when necessary. The API is mirroring the way asynchronous communication is handled in `torch.distributed`, i.e. exposing `isend` and `irecv` that return work objects that can be awaited using a `wait` method. This allows for a clean integration with the rest of the PyTorch ecosystem. For an example of this check out our research codebase for [pipeline parallel inference](https://github.com/primeintellect-ai/pipelined-gpt-fast) that uses this library for P2P communication across geographically distributed nodes.
+Because we are building on top of Iroh, we get many nice networking features out of the box. Most importantly, the library guarantees reliable P2P connections between nodes, trying to establish directions connections whenever possible, and falling back to NAT-hole punching and relaying when necessary. The API is mirroring the way asynchronous communication is handled in `torch.distributed`, i.e. exposing `isend` and `irecv` that return work objects that can be awaited using a `wait` method. This allows for a clean integration with the rest of the PyTorch ecosystem.
 
 
 ## Installation
@@ -26,7 +26,7 @@ Because we are building on top of Iroh, we get many nice networking features out
 **Quick Install**: Run the following command for a quick install:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/PrimeIntellect-ai/iroh_py/refs/heads/main/script/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/PrimeIntellect-ai/prime-iroh/refs/heads/main/script/install.sh | bash
 ```
 
 **Manual Install**: First, install uv and cargo to build the project.
@@ -44,10 +44,10 @@ source $HOME/.cargo/env
 Then, clone the repository
 
 ```bash
-git clone git@github.com:PrimeIntellect-ai/iroh_py.git && cd iroh_py
+git clone git@github.com:PrimeIntellect-ai/prime-iroh.git && cd prime-iroh
 ```
 
-To build the Rust backend run `cargo build`, to build the Python bindings run `uv sync`. This will let you install `iroh-py` as a Python package within the virtual environment. To use the library in your project, you can import it as follows:
+To build the Rust backend run `cargo build`, to build the Python bindings run `uv sync`. This will let you install `prime-iroh` as a Python package within the virtual environment.
 
 ## Usage
 
@@ -69,7 +69,7 @@ For Python usage, you would use the node class as follows:
 
 ```python
 # On the receiver side
-from iroh_py import Node
+from prime_iroh import Node
 
 # Initialize the node
 node = Node(num_streams=1)
@@ -85,7 +85,7 @@ msg = node.irecv(tag=0).wait()
 
 ```python
 # On the sender side
-from iroh_py import Node
+from prime_iroh import Node
 
 # Initialize the node
 node = Node(num_streams=1)

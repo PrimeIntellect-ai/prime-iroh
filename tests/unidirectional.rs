@@ -1,5 +1,5 @@
 use anyhow::Result;
-use iroh_py::node::Node;
+use prime_iroh::node::Node;
 use std::time::Duration;
 
 const NUM_MESSAGES: usize = 5;

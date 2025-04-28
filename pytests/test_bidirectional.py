@@ -1,4 +1,4 @@
-from iroh_py import Node
+from prime_iroh import Node
 import time
 
 NUM_MESSAGES = 5

@@ -1,10 +1,10 @@
 [package]
-name = "iroh_py"
+name = "prime_iroh"
 version = "0.1.0"
 edition = "2024"
 
 [lib]
-name = "iroh_py"
+name = "prime_iroh"
 path = "src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 

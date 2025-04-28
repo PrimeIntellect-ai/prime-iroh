@@ -20,7 +20,7 @@ pub use node::Node;
 use pyo3::prelude::*;
 
 #[pymodule]
-fn iroh_py(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn prime_iroh(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(bindings::sum_as_string, m)?)?;
     m.add_class::<bindings::SendWork>()?;
     m.add_class::<bindings::RecvWork>()?;

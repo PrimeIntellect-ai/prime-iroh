@@ -1665,18 +1665,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "iroh_py"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "hex",
- "iroh",
- "pyo3",
- "rand 0.8.5",
- "tokio",
-]
-
-[[package]]
 name = "itoa"
 version = "1.0.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2535,6 +2523,18 @@ dependencies = [
  "lazy_static",
  "regex",
  "ucd-parse",
+]
+
+[[package]]
+name = "prime_iroh"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "hex",
+ "iroh",
+ "pyo3",
+ "rand 0.8.5",
+ "tokio",
 ]
 
 [[package]]

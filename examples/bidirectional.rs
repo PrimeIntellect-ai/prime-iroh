@@ -12,7 +12,7 @@
  * `cargo run --example bidirectional rank1`
  */
  use std::env;
- use iroh_py::node::Node;
+ use prime_iroh::node::Node;
  use anyhow::anyhow;
  use anyhow::Result;
  

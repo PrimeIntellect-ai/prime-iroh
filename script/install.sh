@@ -12,10 +12,10 @@ log_info() {
 
 main() {
     log_info "Cloning repository..."
-    git clone git@github.com:PrimeIntellect-ai/iroh_py.git
+    git clone https://github.com/PrimeIntellect-ai/prime-iroh.git
     
     log_info "Entering project directory..."
-    cd iroh_py
+    cd prime-iroh
     
     log_info "Installing uv..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
