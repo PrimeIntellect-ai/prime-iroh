@@ -26,7 +26,7 @@ Because we are building on top of Iroh, we get many nice networking features out
 **Quick Install**: Run the following command for a quick install:
 
 ```bash
-curl -sSL https://raw.githubusercontent.com/PrimeIntellect-ai/prime-iroh/refs/heads/main/script/install.sh | bash
+curl -sSL https://raw.githubusercontent.com/PrimeIntellect-ai/prime-iroh/refs/heads/master/script/install.sh | bash
 ```
 
 **Manual Install**: First, install uv and cargo to build the project.
