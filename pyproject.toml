@@ -6,7 +6,7 @@ build-backend = "maturin"
 name = "prime_iroh"
 version = "0.1.1"
 authors = [{name = "Mika Senghaas", email = "mika@primeintellect.ai"}]
-description = "P2P Pipeline Parallel Communication Backend built on top of Iroh, mimicking `torch.distributed` API"
+description = "Asynchronous P2P communication backend for decentralized pipeline parallelism, built on top of Iroh"
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
