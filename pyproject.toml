@@ -4,15 +4,24 @@ build-backend = "maturin"
 
 [project]
 name = "prime_iroh"
-version = "0.1.0"
-description = "Python bindings for prime-iroh (P2P Pipeline Parallel Communication Backend)"
+version = "0.1.1"
+authors = [{name = "Mika Senghaas", email = "mika@primeintellect.ai"}]
+description = "P2P Pipeline Parallel Communication Backend built on top of Iroh, mimicking `torch.distributed` API"
+readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
-    "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: OS Independent",
+    "Operating System :: Linux",
 ]
+license = {text = "MIT"}
+license-files = ["LICENSE"]
+
+[project.urls]
+Documentation = "https://github.com/PrimeIntellect-ai/prime-iroh"
+Repository = "https://github.com/PrimeIntellect-ai/prime-iroh"
+Issues = "https://github.com/PrimeIntellect-ai/prime-iroh/issues"
 
 [tool.maturin]
 features = ["extension-module"]
@@ -20,14 +29,9 @@ generate-stubs = true
 release = true
 
 [tool.uv]
-dev-dependencies = ["pytest", "maturin"]
+dev-dependencies = ["pytest", "maturin", "ruff", "pre-commit"]
 cache-keys = [
     { file = "pyproject.toml" },
     { file = "Cargo.toml" },
     { file = "**/*.rs" },
-]
-
-[dependency-groups]
-test = [
-    "pytest>=8.3.5",
 ]

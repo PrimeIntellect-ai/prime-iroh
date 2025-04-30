@@ -4,12 +4,6 @@ use std::sync::RwLock;
 use crate::node::Node as IrohNode;
 use crate::work::{SendWork as IrohSendWork, RecvWork as IrohRecvWork};
 
-/// Formats the sum of two numbers as string.
-#[pyfunction]
-pub fn sum_as_string(a: usize, b: usize) -> PyResult<String> {
-    Ok((a + b).to_string())
-}
-
 /// A Python wrapper around the Work class
 #[pyclass]
 pub struct SendWork {

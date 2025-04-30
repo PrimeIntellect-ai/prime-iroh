@@ -1,0 +1,35 @@
+name: Build and Upload Wheels
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'
+
+      - name: Install Maturin
+        run: |
+          pip install maturin
+
+      - name: Build wheels
+        run: |
+          maturin build --release --manylinux -i 3.12
+          maturin build --release --manylinux -i 3.13
+
+      - name: Upload to PyPI
+        run: |
+          maturin upload --username __token__ --password ${{ secrets.PYPI_TOKEN }} --skip-existing
