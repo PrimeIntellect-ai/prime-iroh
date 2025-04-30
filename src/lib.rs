@@ -19,9 +19,9 @@ pub use node::Node;
 // Python bindings
 use pyo3::prelude::*;
 
+// Expose classes to Python
 #[pymodule]
 fn prime_iroh(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    m.add_function(wrap_pyfunction!(bindings::sum_as_string, m)?)?;
     m.add_class::<bindings::SendWork>()?;
     m.add_class::<bindings::RecvWork>()?;
     m.add_class::<bindings::Node>()?;
