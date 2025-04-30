@@ -10,10 +10,10 @@ description = "Asynchronous P2P communication backend for decentralized pipeline
 readme = "README.md"
 requires-python = ">=3.12"
 classifiers = [
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Rust",
+    "Programming Language :: Python",
     "License :: OSI Approved :: MIT License",
-    "Operating System :: Linux",
+    "Operating System :: POSIX :: Linux",
 ]
 license = {text = "MIT"}
 license-files = ["LICENSE"]
