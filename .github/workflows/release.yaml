@@ -14,6 +14,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-latest]
+        python-version: ['3.10', '3.11', '3.12', '3.13']
 
     steps:
       - uses: actions/checkout@v3
@@ -29,8 +30,7 @@ jobs:
 
       - name: Build wheels
         run: |
-          maturin build --release --manylinux -i 3.12
-          maturin build --release --manylinux -i 3.13
+          maturin build --release --manylinux -i ${{ matrix.python-version }}
 
       - name: Upload to PyPI
         run: |
