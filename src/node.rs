@@ -1,13 +1,13 @@
-use crate::work::{SendWork, RecvWork};
-use crate::sender::Sender;
 use crate::receiver::Receiver;
+use crate::sender::Sender;
+use crate::work::{RecvWork, SendWork};
 
-use tokio::runtime::Runtime;
-use std::sync::Arc;
+use anyhow::{Error, Result};
 use iroh::{Endpoint, SecretKey};
-use anyhow::{Result, Error};
 use rand::SeedableRng;
 use rand::rngs::StdRng;
+use std::sync::Arc;
+use tokio::runtime::Runtime;
 
 pub struct Node {
     node_id: String,
@@ -36,15 +36,26 @@ impl Node {
         let node_id = endpoint.node_id().to_string();
         let receiver = Receiver::new(runtime.clone(), endpoint.clone(), num_streams);
         let sender = Sender::new(runtime.clone(), endpoint.clone());
-        Ok(Self { node_id, num_streams, receiver, sender })
+        Ok(Self {
+            node_id,
+            num_streams,
+            receiver,
+            sender,
+        })
     }
 
     pub fn node_id(&self) -> &str {
         &self.node_id
     }
 
-    pub fn connect(&mut self, node_id_str: &str) -> Result<()> {
-        self.sender.connect(node_id_str, self.num_streams)?;
+    pub fn connect(
+        &mut self,
+        node_id_str: &str,
+        num_retries: usize,
+        backoff_ms: usize,
+    ) -> Result<()> {
+        self.sender
+            .connect(node_id_str, self.num_streams, num_retries, backoff_ms)?;
         Ok(())
     }
 
@@ -75,11 +86,10 @@ impl Node {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_node_creation() -> Result<()> {
         let node = Node::new(1)?;
@@ -94,7 +104,9 @@ mod tests {
     #[test]
     fn test_node_creation_with_seed() -> Result<()> {
         let node = Node::with_seed(1, Some(42))?;
-        assert!(node.node_id() == "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454");
+        assert!(
+            node.node_id() == "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454"
+        );
         assert!(node.node_id().len() == 64);
         assert!(!node.can_recv());
         assert!(!node.can_send());

@@ -1,8 +1,8 @@
-use pyo3::prelude::*;
-use pyo3::exceptions::PyRuntimeError;
-use std::sync::RwLock;
 use crate::node::Node as IrohNode;
-use crate::work::{SendWork as IrohSendWork, RecvWork as IrohRecvWork};
+use crate::work::{RecvWork as IrohRecvWork, SendWork as IrohSendWork};
+use pyo3::exceptions::PyRuntimeError;
+use pyo3::prelude::*;
+use std::sync::RwLock;
 
 /// A Python wrapper around the Work class
 #[pyclass]
@@ -13,7 +13,9 @@ pub struct SendWork {
 // Completely outside the pymethods - not exposed to Python
 impl SendWork {
     pub fn new(inner: IrohSendWork) -> Self {
-        Self { inner: RwLock::new(Some(inner)) }
+        Self {
+            inner: RwLock::new(Some(inner)),
+        }
     }
 }
 
@@ -22,11 +24,18 @@ impl SendWork {
     /// Wait for the work to complete and return the result
     pub fn wait(&self) -> PyResult<()> {
         // Take the inner value out of the RwLock, leaving None in its place
-        let mut write_guard = self.inner.write().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let mut write_guard = self
+            .inner
+            .write()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         if let Some(inner) = write_guard.take() {
-            inner.wait().map_err(|e| PyRuntimeError::new_err(e.to_string()))
+            inner
+                .wait()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         } else {
-            Err(PyRuntimeError::new_err("SendWork has already been consumed"))
+            Err(PyRuntimeError::new_err(
+                "SendWork has already been consumed",
+            ))
         }
     }
 }
@@ -40,7 +49,9 @@ pub struct RecvWork {
 // Completely outside the pymethods - not exposed to Python
 impl RecvWork {
     pub fn new(inner: IrohRecvWork) -> Self {
-        Self { inner: RwLock::new(Some(inner)) }
+        Self {
+            inner: RwLock::new(Some(inner)),
+        }
     }
 }
 
@@ -49,11 +60,18 @@ impl RecvWork {
     /// Wait for the work to complete and return the result
     pub fn wait(&self) -> PyResult<Vec<u8>> {
         // Take the inner value out of the RwLock, leaving None in its place
-        let mut write_guard = self.inner.write().map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+        let mut write_guard = self
+            .inner
+            .write()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         if let Some(inner) = write_guard.take() {
-            inner.wait().map_err(|e| PyRuntimeError::new_err(e.to_string()))
+            inner
+                .wait()
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         } else {
-            Err(PyRuntimeError::new_err("RecvWork has already been consumed"))
+            Err(PyRuntimeError::new_err(
+                "RecvWork has already been consumed",
+            ))
         }
     }
 }
@@ -77,7 +95,8 @@ impl Node {
     #[pyo3(text_signature = "(num_streams)")]
     pub fn new(num_streams: usize) -> PyResult<Self> {
         Ok(Self {
-            inner: IrohNode::new(num_streams).map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            inner: IrohNode::new(num_streams)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         })
     }
 
@@ -95,7 +114,8 @@ impl Node {
     #[pyo3(text_signature = "(num_streams, seed)")]
     pub fn with_seed(num_streams: usize, seed: Option<u64>) -> PyResult<Self> {
         Ok(Self {
-            inner: IrohNode::with_seed(num_streams, seed).map_err(|e| PyRuntimeError::new_err(e.to_string()))?
+            inner: IrohNode::with_seed(num_streams, seed)
+                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
         })
     }
 
@@ -112,12 +132,21 @@ impl Node {
     ///
     /// Args:
     ///     node_id_str: The node ID of the Node to connect to
+    ///     num_retries: The number of retries to attempt
+    ///     backoff_ms: The backoff time in milliseconds
     ///
     /// Returns:
     ///     None if successful
-    #[pyo3(text_signature = "(node_id_str)")]
-    pub fn connect(&mut self, node_id_str: &str) -> PyResult<()> {
-        self.inner.connect(node_id_str).map_err(|e| PyRuntimeError::new_err(e.to_string()))
+    #[pyo3(text_signature = "(node_id_str, num_retries, backoff_ms)")]
+    pub fn connect(
+        &mut self,
+        node_id_str: &str,
+        num_retries: usize,
+        backoff_ms: usize,
+    ) -> PyResult<()> {
+        self.inner
+            .connect(node_id_str, num_retries, backoff_ms)
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 
     /// Check if the Node can receive messages.
@@ -157,7 +186,12 @@ impl Node {
     /// Returns:
     ///     A SendWork object
     #[pyo3(text_signature = "(msg, tag, latency=None)")]
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> PyResult<SendWork> {
+    pub fn isend(
+        &mut self,
+        msg: Vec<u8>,
+        tag: usize,
+        latency: Option<usize>,
+    ) -> PyResult<SendWork> {
         Ok(SendWork::new(self.inner.isend(msg, tag, latency)))
     }
 
@@ -176,6 +210,8 @@ impl Node {
     /// Close the Node.
     #[pyo3(text_signature = "()")]
     pub fn close(&mut self) -> PyResult<()> {
-        self.inner.close().map_err(|e| PyRuntimeError::new_err(e.to_string()))
+        self.inner
+            .close()
+            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 }

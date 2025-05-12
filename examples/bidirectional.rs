@@ -1,21 +1,21 @@
 /*
  * This example demonstrates bidirectional communication between two nodes.
- * For simplicity, we initialize with known seeds, so that the nodes can 
+ * For simplicity, we initialize with known seeds, so that the nodes can
  * automatically connect to each other with known connection strings.
- * 
+ *
  * Run the receiver:
  *
  * `cargo run --example bidirectional rank0`
- * 
+ *
  * Run the sender:
  *
  * `cargo run --example bidirectional rank1`
  */
- use std::env;
- use prime_iroh::node::Node;
- use anyhow::anyhow;
- use anyhow::Result;
- 
+use anyhow::Result;
+use anyhow::anyhow;
+use prime_iroh::node::Node;
+use std::env;
+
 fn main() -> Result<()> {
     // Get command line arguments
     let args: Vec<String> = env::args().collect();
@@ -54,7 +54,7 @@ fn main() -> Result<()> {
 
     // Wait until connection is established
     println!("Waiting for connection...");
-    node.connect(peer_id)?;
+    node.connect(peer_id, 10, 100)?;
     while !node.is_ready() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
@@ -71,7 +71,7 @@ fn main() -> Result<()> {
         let recv_work = node.irecv(0);
         let bytes = recv_work.wait()?;
         let recv_msg = String::from_utf8_lossy(&bytes);
-        println!("Received message {}: {:?}", i+1, recv_msg);
+        println!("Received message {}: {:?}", i + 1, recv_msg);
 
         // Wait for send work to complete
         send_work.wait()?;

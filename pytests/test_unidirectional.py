@@ -15,7 +15,7 @@ class UnidirectionalTest:
         
         # Initialize sender
         self.sender = Node(num_streams=NUM_STREAMS)
-        self.sender.connect(self.receiver.node_id())
+        self.sender.connect(self.receiver.node_id(), 10, 1000)
         
         # Wait for connection to be established
         while not self.receiver.can_recv() or not self.sender.can_send():
