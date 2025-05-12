@@ -32,6 +32,11 @@ fn main() -> Result<()> {
             println!("Running receiver");
             node = Node::with_seed(num_streams, Some(42))?;
 
+            // Wait for incoming connection
+            println!("Waiting for receiver to be ready...");
+            while !node.can_recv() {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+            }
             println!("Ready to receive!");
 
             // Receive messages
@@ -50,10 +55,13 @@ fn main() -> Result<()> {
             println!("Connecting to receiver...");
             let receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
             node.connect(receiver_id, 10, 100)?;
+
+            // Wait for connection to be established
+            println!("Waiting for sender to be ready...");
             while !node.can_send() {
                 std::thread::sleep(std::time::Duration::from_millis(100));
             }
-            println!("Connected and ready to send!");
+            println!("Ready to send!");
 
             // Send messages
             for i in 0..num_messages {
