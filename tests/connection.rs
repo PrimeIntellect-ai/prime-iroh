@@ -20,6 +20,10 @@ impl ConnectionTest {
             println!("Initializing node {} (ID: {})", i, node_id);
             nodes.push(node);
             node_ids.push(node_id);
+
+            // Currently needed for discovery to work
+            // TODO(Mika): Fix this
+            std::thread::sleep(Duration::from_millis(1000));
         }
 
         // Connect nodes
@@ -32,7 +36,7 @@ impl ConnectionTest {
                 "Connecting node {}->{} (ID: {}->{})",
                 i, j, node_id, peer_id
             );
-            current_node.connect(peer_id, 10, 100)?;
+            current_node.connect(peer_id)?;
         }
 
         while !nodes.iter().all(|node| node.is_ready()) {
