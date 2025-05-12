@@ -16,17 +16,13 @@ impl UnidirectionalTest {
         let receiver = Node::new(NUM_STREAMS)?;
         println!("Initialized receiver (ID: {})", receiver.node_id());
 
+        // Currently needed for discovery to work
+        // TODO(Mika): Fix this
+        std::thread::sleep(Duration::from_millis(1000));
+
         // Initialize sender
         let mut sender = Node::new(NUM_STREAMS)?;
-        println!("Initialized sender (ID: {})", sender.node_id());
-
-        // Connect sender to receiver
-        println!(
-            "Connecting sender->receiver (ID: {}->{})",
-            sender.node_id(),
-            receiver.node_id()
-        );
-        sender.connect(receiver.node_id(), 10, 100)?;
+        sender.connect(receiver.node_id())?;
 
         // Wait for connection to be established
         while !receiver.can_recv() || !sender.can_send() {
@@ -75,12 +71,6 @@ impl UnidirectionalTest {
 
         Ok(())
     }
-
-    fn teardown(&mut self) -> Result<()> {
-        self.sender.close()?;
-        self.receiver.close()?;
-        Ok(())
-    }
 }
 
 mod tests {
@@ -95,9 +85,6 @@ mod tests {
 
         // Run async message test
         test.test_async_messages()?;
-
-        // Teardown
-        test.teardown()?;
 
         Ok(())
     }
