@@ -126,19 +126,3 @@ Run single integration test, e.g. `tests/connection.rs`:
 ```bash
 cargo test --test connection
 ```
-
-**Python Tests**
-
-Run full test suite (only integration tests are available for now):
-
-```bash
-uv run pytest
-```
-
-To run the tests with verbose output, use `uv run pytest -s`.
-
-Run single test, e.g. `pytests/test_unidirectional.py`:
-
-```bash
-uv run pytest tests/test_unidirectional.py
-```
