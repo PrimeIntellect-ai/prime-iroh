@@ -16,7 +16,7 @@ impl ConnectionTest {
         let mut node_ids = Vec::new();
         for i in 0..num_nodes {
             let node = Node::new(NUM_STREAMS)?;
-            let node_id = node.node_id().to_string();
+            let node_id = node.node_id();
             println!("Initializing node {} (ID: {})", i, node_id);
             nodes.push(node);
             node_ids.push(node_id);
@@ -27,7 +27,7 @@ impl ConnectionTest {
             let current_node = &mut nodes[i];
             let j = (i + 1) % num_nodes;
             let node_id = current_node.node_id();
-            let peer_id = node_ids[j].as_str();
+            let peer_id = node_ids[j].clone();
             println!(
                 "Connecting node {}->{} (ID: {}->{})",
                 i, j, node_id, peer_id
