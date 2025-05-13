@@ -15,6 +15,9 @@ use prime_iroh::node::Node;
 use std::env;
 
 fn main() -> Result<()> {
+    // Initialize logging
+    env_logger::init();
+
     // Get command line arguments
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
@@ -41,7 +44,7 @@ fn main() -> Result<()> {
 
             // Receive messages
             for i in 0..num_messages {
-                let bytes = node.irecv(0).wait()?;
+                let bytes = node.irecv(0)?.wait()?;
                 let msg = String::from_utf8_lossy(&bytes);
                 println!("Received message {}: {:?}", i + 1, msg);
             }
@@ -53,7 +56,8 @@ fn main() -> Result<()> {
 
             // Connect to receiver
             println!("Connecting to receiver...");
-            let receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454";
+            let receiver_id =
+                String::from("9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454");
             node.connect(receiver_id, 10, 100)?;
 
             // Wait for connection to be established
@@ -67,7 +71,7 @@ fn main() -> Result<()> {
             for i in 0..num_messages {
                 let msg = "Hello from sender";
                 let bytes = msg.as_bytes().to_vec();
-                node.isend(bytes, 0, Some(1000)).wait()?; // 1s artificial latency
+                node.isend(bytes, 0, Some(1000))?.wait()?; // 1s artificial latency
                 println!("Sent message {}: {:?}", i + 1, msg);
             }
         }
@@ -77,6 +81,7 @@ fn main() -> Result<()> {
     }
 
     // Clean up
+    println!("Closing node...");
     node.close().unwrap();
 
     Ok(())

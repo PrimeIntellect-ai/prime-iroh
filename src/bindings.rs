@@ -1,5 +1,6 @@
 use crate::node::Node as IrohNode;
 use crate::work::{RecvWork as IrohRecvWork, SendWork as IrohSendWork};
+use anyhow::Result;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 use std::sync::RwLock;
@@ -7,12 +8,12 @@ use std::sync::RwLock;
 /// A Python wrapper around the Work class
 #[pyclass]
 pub struct SendWork {
-    inner: RwLock<Option<IrohSendWork>>,
+    inner: RwLock<Option<Result<IrohSendWork>>>,
 }
 
 // Completely outside the pymethods - not exposed to Python
 impl SendWork {
-    pub fn new(inner: IrohSendWork) -> Self {
+    pub fn new(inner: Result<IrohSendWork>) -> Self {
         Self {
             inner: RwLock::new(Some(inner)),
         }
@@ -30,6 +31,7 @@ impl SendWork {
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         if let Some(inner) = write_guard.take() {
             inner
+                .unwrap()
                 .wait()
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         } else {
@@ -43,12 +45,12 @@ impl SendWork {
 /// A Python wrapper around the RecvWork class
 #[pyclass]
 pub struct RecvWork {
-    inner: RwLock<Option<IrohRecvWork>>,
+    inner: RwLock<Option<Result<IrohRecvWork>>>,
 }
 
 // Completely outside the pymethods - not exposed to Python
 impl RecvWork {
-    pub fn new(inner: IrohRecvWork) -> Self {
+    pub fn new(inner: Result<IrohRecvWork>) -> Self {
         Self {
             inner: RwLock::new(Some(inner)),
         }
@@ -66,6 +68,7 @@ impl RecvWork {
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
         if let Some(inner) = write_guard.take() {
             inner
+                .unwrap()
                 .wait()
                 .map_err(|e| PyRuntimeError::new_err(e.to_string()))
         } else {
@@ -131,21 +134,21 @@ impl Node {
     /// Connect to a Node with a given node ID.
     ///
     /// Args:
-    ///     node_id_str: The node ID of the Node to connect to
+    ///     peer_id_str: The ID of the peer to connect to
     ///     num_retries: The number of retries to attempt
     ///     backoff_ms: The backoff time in milliseconds
     ///
     /// Returns:
     ///     None if successful
-    #[pyo3(text_signature = "(node_id_str, num_retries, backoff_ms)")]
+    #[pyo3(text_signature = "(peer_id_str, num_retries, backoff_ms)")]
     pub fn connect(
         &mut self,
-        node_id_str: &str,
+        peer_id_str: String,
         num_retries: usize,
         backoff_ms: usize,
     ) -> PyResult<()> {
         self.inner
-            .connect(node_id_str, num_retries, backoff_ms)
+            .connect(peer_id_str, num_retries, backoff_ms)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 

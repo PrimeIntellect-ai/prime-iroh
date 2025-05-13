@@ -41,11 +41,13 @@ impl UnidirectionalTest {
         for i in 0..NUM_MESSAGES {
             // Send message
             let msg = format!("Sync message {}", i);
-            self.sender.isend(msg.as_bytes().to_vec(), 0, None).wait()?;
+            self.sender
+                .isend(msg.as_bytes().to_vec(), 0, None)?
+                .wait()?;
             println!("Sender sent: {}", msg);
 
             // Receive message
-            let received = self.receiver.irecv(0).wait()?;
+            let received = self.receiver.irecv(0)?.wait()?;
             let received_str = String::from_utf8_lossy(&received);
             println!("Receiver received: {}", received_str);
 
@@ -64,13 +66,13 @@ impl UnidirectionalTest {
             let send_work = self.sender.isend(msg.as_bytes().to_vec(), 0, None);
 
             // Receive message
-            let received = self.receiver.irecv(0).wait()?;
+            let received = self.receiver.irecv(0)?.wait()?;
             let received_str = String::from_utf8_lossy(&received);
 
             // Verify received message matches sent message
             assert_eq!(received_str, msg);
 
-            send_work.wait()?;
+            send_work?.wait()?;
         }
 
         Ok(())

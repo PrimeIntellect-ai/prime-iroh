@@ -1,4 +1,4 @@
-use anyhow::{Error, Result};
+use anyhow::{Error, Result, anyhow, ensure};
 use iroh::{
     Endpoint, NodeAddr, NodeId,
     endpoint::{Connection, SendStream},
@@ -9,14 +9,14 @@ use tokio::sync::Mutex;
 
 use crate::work::SendWork;
 
-const ALPN: &[u8] = b"hello-world";
+const ALPN: &[u8] = b"prime-iroh";
 
-pub struct SenderConnection {
+pub struct MultiStreamConnection {
     connection: Connection,
     send_streams: Vec<Arc<Mutex<SendStream>>>,
 }
 
-impl SenderConnection {
+impl MultiStreamConnection {
     pub fn new(connection: Connection, send_streams: Vec<Arc<Mutex<SendStream>>>) -> Self {
         Self {
             connection,
@@ -28,11 +28,12 @@ impl SenderConnection {
 pub struct Sender {
     runtime: Arc<Runtime>,
     endpoint: Endpoint,
-    connection: Option<SenderConnection>,
+    connection: Option<MultiStreamConnection>,
 }
 
 impl Sender {
     pub fn new(runtime: Arc<Runtime>, endpoint: Endpoint) -> Self {
+        log::info!("Creating sender (ID={})", endpoint.node_id().fmt_short());
         Self {
             runtime,
             endpoint,
@@ -46,23 +47,32 @@ impl Sender {
 
     pub fn connect(
         &mut self,
-        node_id_str: &str,
+        peer_id_str: String,
         num_streams: usize,
         num_retries: usize,
         backoff_ms: usize,
     ) -> Result<()> {
+        // Ensure we don't already have a connection
+        ensure!(self.connection.is_none(), "Already have a connection");
+
+        // Get the peer address from the node id
+        let peer_addr = self.get_node_addr(peer_id_str.clone())?;
+
+        log::info!(
+            "Connecting {}->{}",
+            self.endpoint.node_id().fmt_short(),
+            peer_addr.node_id.fmt_short()
+        );
+
+        // Connection loop
         let mut retries_left = num_retries;
         let mut backoff = tokio::time::Duration::from_millis(backoff_ms as u64);
-
         while retries_left > 0 {
             match self.runtime.block_on(async {
-                // Get node address from node_id
-                let addr = self.get_node_addr(node_id_str)?;
-
                 // Try to establish connection
-                let connection = self.endpoint.connect(addr, ALPN).await?;
+                let connection = self.endpoint.connect(peer_addr.clone(), ALPN).await?;
 
-                // Make sure the connection is established by sending dummy payload (0u32)
+                // Establish streams by sending dummy payload
                 let mut send_streams = Vec::with_capacity(num_streams);
                 for _ in 0..num_streams {
                     let send_stream = Arc::new(Mutex::new(connection.open_uni().await?));
@@ -74,28 +84,36 @@ impl Sender {
                     send_streams.push(send_stream);
                 }
 
-                // Create sender connection struct
-                let sender_connection = SenderConnection::new(connection, send_streams);
-
-                Ok::<SenderConnection, Error>(sender_connection)
+                Ok::<MultiStreamConnection, Error>(MultiStreamConnection::new(
+                    connection,
+                    send_streams,
+                ))
             }) {
-                Ok(sender_connection) => {
-                    self.connection = Some(sender_connection);
+                Ok(connection) => {
+                    log::info!(
+                        "Connected {}->{}",
+                        self.endpoint.node_id().fmt_short(),
+                        connection.connection.remote_node_id()?.fmt_short()
+                    );
+                    self.connection = Some(connection);
                     return Ok(());
                 }
                 Err(e) => {
                     let msg = format!(
-                        "Failed to connect to node after {} retries: {}",
-                        num_retries, e
+                        "Failed to connect {}->{} after {} retries: {}",
+                        self.endpoint.node_id().fmt_short(),
+                        peer_id_str,
+                        num_retries,
+                        e
                     );
-                    println!("{}", msg);
+                    log::warn!("{}", msg);
                     retries_left -= 1;
                     if retries_left == 0 {
-                        return Err(anyhow::anyhow!(msg));
+                        return Err(anyhow!(msg));
                     }
 
                     // Wait with exponential backoff before retrying
-                    println!("Waiting for {}ms before retrying", backoff.as_millis());
+                    log::warn!("Waiting for {}ms before retrying", backoff.as_millis());
                     self.runtime.block_on(async {
                         tokio::time::sleep(backoff).await;
                     });
@@ -108,26 +126,49 @@ impl Sender {
         unreachable!()
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> SendWork {
-        let stream = self.connection.as_ref().unwrap().send_streams[tag].clone();
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> Result<SendWork> {
+        // Ensure we have a connection
+        ensure!(self.is_ready(), "Sender is not ready");
+        log::debug!("Sending {} bytes via stream {}", msg.len(), tag);
+
+        // Get the sender connection
+        let connection = self.connection.as_ref().unwrap();
+
+        // Get the stream
+        ensure!(tag < connection.send_streams.len(), "Invalid tag");
+        let stream = connection.send_streams[tag].clone();
+
         let handle = self.runtime.spawn(async move {
             if let Some(latency) = latency {
                 tokio::time::sleep(tokio::time::Duration::from_millis(latency as u64)).await;
             }
+            // Lock the stream
             let mut stream = stream.lock().await;
+
+            // Write the size of the message
             let size = msg.len() as u32;
             stream.write_all(&size.to_le_bytes()).await?;
+
+            // Write the message
             stream.write_all(&msg).await?;
 
             Ok(())
         });
-        SendWork {
+        Ok(SendWork {
             runtime: self.runtime.clone(),
             handle: handle,
-        }
+        })
     }
 
     pub fn close(&mut self) -> Result<()> {
+        if !self.is_ready() {
+            log::warn!("Sender connection does not exist, skipping close");
+            return Ok(());
+        }
+        log::info!(
+            "Closing sender (ID={})",
+            self.endpoint.node_id().fmt_short()
+        );
         match self.runtime.block_on(async {
             let mut connection = self.connection.take();
             if let Some(connection) = connection.as_mut() {
@@ -151,13 +192,13 @@ impl Sender {
         }) {
             Ok(()) => Ok(()),
             Err(e) => {
-                println!("Failed to close sender with error: {}", e); // TODO: WARNING
+                log::warn!("Failed to close sender with error: {}", e);
                 Ok(())
             }
         }
     }
 
-    fn get_node_addr(&self, node_id_str: &str) -> Result<NodeAddr> {
+    fn get_node_addr(&self, node_id_str: String) -> Result<NodeAddr> {
         let bytes = hex::decode(node_id_str)?;
         let node_id = NodeId::from_bytes(bytes.as_slice().try_into()?)?;
         Ok(NodeAddr::new(node_id))
@@ -168,14 +209,41 @@ impl Sender {
 mod tests {
     use super::*;
 
+    fn init() -> (Endpoint, Arc<Runtime>) {
+        let runtime = Arc::new(Runtime::new().unwrap());
+        let endpoint = runtime
+            .block_on(async { Endpoint::builder().discovery_n0().bind().await })
+            .unwrap();
+        (endpoint, runtime)
+    }
+
     #[test]
     fn test_sender_creation() -> Result<()> {
-        let runtime = Arc::new(Runtime::new()?);
-        let endpoint =
-            runtime.block_on(async { Endpoint::builder().discovery_n0().bind().await })?;
-
+        let (endpoint, runtime) = init();
         let sender = Sender::new(runtime, endpoint);
         assert!(!sender.is_ready());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_sender_error_on_send() -> Result<()> {
+        let (endpoint, runtime) = init();
+        let mut sender = Sender::new(runtime, endpoint);
+
+        let res = sender.isend(vec![0; 100], 0, None);
+        assert!(res.is_err());
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_sender_ok_on_close() -> Result<()> {
+        let (endpoint, runtime) = init();
+        let mut sender = Sender::new(runtime, endpoint);
+
+        let res = sender.close();
+        assert!(res.is_ok());
 
         Ok(())
     }

@@ -51,11 +51,11 @@ impl BidirectionalTest {
                 None,
             );
 
-            send_work0.wait()?;
-            send_work1.wait()?;
+            send_work0?.wait()?;
+            send_work1?.wait()?;
 
-            let received_from_node0 = self.node1.irecv(0).wait()?;
-            let received_from_node1 = self.node0.irecv(0).wait()?;
+            let received_from_node0 = self.node1.irecv(0)?.wait()?;
+            let received_from_node1 = self.node0.irecv(0)?.wait()?;
 
             assert_eq!(
                 received_from_node0,

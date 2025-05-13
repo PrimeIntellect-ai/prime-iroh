@@ -17,6 +17,9 @@ use prime_iroh::node::Node;
 use std::env;
 
 fn main() -> Result<()> {
+    // Initialize logging
+    env_logger::init();
+
     // Get command line arguments
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
@@ -29,20 +32,22 @@ fn main() -> Result<()> {
     let mode = &args[1];
     let mut node: Node;
     let rank: u64;
-    let peer_id: &str;
+    let peer_id: String;
 
     match mode.as_str() {
         "rank0" => {
             // Initialize variables for rank 0 (define rank 1's connection string)
             println!("Running rank 0");
             rank = 0;
-            peer_id = "ff87a0b0a3c7c0ce827e9cada5ff79e75a44a0633bfcb5b50f99307ddb26b337";
+            peer_id =
+                String::from("ff87a0b0a3c7c0ce827e9cada5ff79e75a44a0633bfcb5b50f99307ddb26b337");
         }
         "rank1" => {
             // Initialize variables for rank 1 (define rank 0's connection string)
             println!("Running rank 1");
             rank = 1;
-            peer_id = "ee1aa49a4459dfe813a3cf6eb882041230c7b2558469de81f87c9bf23bf10a03";
+            peer_id =
+                String::from("ee1aa49a4459dfe813a3cf6eb882041230c7b2558469de81f87c9bf23bf10a03");
         }
         _ => {
             return Err(anyhow!("Invalid mode. Use 'rank0' or 'rank1'"));
@@ -69,12 +74,12 @@ fn main() -> Result<()> {
 
         // Receive message
         let recv_work = node.irecv(0);
-        let bytes = recv_work.wait()?;
+        let bytes = recv_work?.wait()?;
         let recv_msg = String::from_utf8_lossy(&bytes);
         println!("Received message {}: {:?}", i + 1, recv_msg);
 
         // Wait for send work to complete
-        send_work.wait()?;
+        send_work?.wait()?;
     }
 
     // Clean up

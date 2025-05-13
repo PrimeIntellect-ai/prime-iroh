@@ -10,8 +10,8 @@ use std::sync::Arc;
 use tokio::runtime::Runtime;
 
 pub struct Node {
-    node_id: String,
     num_streams: usize,
+    endpoint: Endpoint,
     receiver: Receiver,
     sender: Sender,
 }
@@ -22,6 +22,7 @@ impl Node {
     }
 
     pub fn with_seed(num_streams: usize, seed: Option<u64>) -> Result<Self> {
+        log::info!("Creating node");
         let runtime = Arc::new(Runtime::new()?);
         let endpoint = runtime.block_on(async {
             let mut builder = Endpoint::builder().discovery_n0();
@@ -33,29 +34,29 @@ impl Node {
             let endpoint = builder.bind().await?;
             Ok::<Endpoint, Error>(endpoint)
         })?;
-        let node_id = endpoint.node_id().to_string();
         let receiver = Receiver::new(runtime.clone(), endpoint.clone(), num_streams);
         let sender = Sender::new(runtime.clone(), endpoint.clone());
+        log::info!("Created node (ID={})", endpoint.node_id().fmt_short());
         Ok(Self {
-            node_id,
             num_streams,
+            endpoint,
             receiver,
             sender,
         })
     }
 
-    pub fn node_id(&self) -> &str {
-        &self.node_id
+    pub fn node_id(&self) -> String {
+        self.endpoint.node_id().to_string()
     }
 
     pub fn connect(
         &mut self,
-        node_id_str: &str,
+        peer_id_str: String,
         num_retries: usize,
         backoff_ms: usize,
     ) -> Result<()> {
         self.sender
-            .connect(node_id_str, self.num_streams, num_retries, backoff_ms)?;
+            .connect(peer_id_str, self.num_streams, num_retries, backoff_ms)?;
         Ok(())
     }
 
@@ -71,17 +72,19 @@ impl Node {
         self.can_recv() && self.can_send()
     }
 
-    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> SendWork {
+    pub fn isend(&mut self, msg: Vec<u8>, tag: usize, latency: Option<usize>) -> Result<SendWork> {
         self.sender.isend(msg, tag, latency)
     }
 
-    pub fn irecv(&mut self, tag: usize) -> RecvWork {
+    pub fn irecv(&mut self, tag: usize) -> Result<RecvWork> {
         self.receiver.irecv(tag)
     }
 
     pub fn close(&mut self) -> Result<()> {
+        log::info!("Closing node (ID={})", self.endpoint.node_id().fmt_short());
         self.sender.close()?;
         self.receiver.close()?;
+        log::info!("Closed node (ID={})", self.endpoint.node_id().fmt_short());
         Ok(())
     }
 }
