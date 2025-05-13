@@ -131,21 +131,21 @@ impl Node {
     /// Connect to a Node with a given node ID.
     ///
     /// Args:
-    ///     node_id_str: The node ID of the Node to connect to
+    ///     peer_id_str: The ID of the peer to connect to
     ///     num_retries: The number of retries to attempt
     ///     backoff_ms: The backoff time in milliseconds
     ///
     /// Returns:
     ///     None if successful
-    #[pyo3(text_signature = "(node_id_str, num_retries, backoff_ms)")]
+    #[pyo3(text_signature = "(peer_id_str, num_retries, backoff_ms)")]
     pub fn connect(
         &mut self,
-        node_id_str: &str,
+        peer_id_str: String,
         num_retries: usize,
         backoff_ms: usize,
     ) -> PyResult<()> {
         self.inner
-            .connect(node_id_str, num_retries, backoff_ms)
+            .connect(peer_id_str, num_retries, backoff_ms)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 

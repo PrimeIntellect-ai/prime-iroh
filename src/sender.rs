@@ -46,7 +46,7 @@ impl Sender {
 
     pub fn connect(
         &mut self,
-        node_id_str: &str,
+        peer_id_str: String,
         num_streams: usize,
         num_retries: usize,
         backoff_ms: usize,
