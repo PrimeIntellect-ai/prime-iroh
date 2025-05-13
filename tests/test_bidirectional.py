@@ -14,8 +14,8 @@ class BidirectionalTest:
         time.sleep(1)
 
         # Connect bidirectionally
-        self.node0.connect(self.node1.node_id())
-        self.node1.connect(self.node0.node_id())
+        self.node0.connect(self.node1.node_id(), 10, 1000)
+        self.node1.connect(self.node0.node_id(), 10, 1000)
         
         # Wait for connection to be established
         while not self.node0.can_recv() or not self.node1.can_send():

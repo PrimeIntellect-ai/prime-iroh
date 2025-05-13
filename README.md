@@ -104,3 +104,41 @@ node.isend("Hello, world!".encode(), tag=0, latency=None).wait()
 ## Tests
 
 We include unit tests and integration tests for the Rust backend which can be run using `cargo test`. The integration tests for uni- and bidirectional communication are also ported to Python and can be run using `uv run pytest`.
+
+**Rust Tests**
+
+Run full test suite (unit and integration tests):
+
+```bash
+cargo test
+```
+
+*Note: To run the tests with verbose output, use `cargo test -- --nocapture`.*
+
+Run single unit test, e.g. tests in `src/node.rs` (this will pattern match the test function names):
+
+```bash
+cargo test node
+```
+
+Run single integration test, e.g. `tests/connection.rs`:
+
+```bash
+cargo test --test connection
+```
+
+**Python Tests**
+
+Run full test suite (only integration tests are available for now):
+
+```bash
+uv run pytest
+```
+
+To run the tests with verbose output, use `uv run pytest -s`.
+
+Run single test, e.g. `pytests/test_unidirectional.py`:
+
+```bash
+uv run pytest tests/test_unidirectional.py
+```
