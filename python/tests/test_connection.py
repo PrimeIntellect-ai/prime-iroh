@@ -1,4 +1,3 @@
-import pytest
 from prime_iroh import Node
 import time
 
