@@ -51,57 +51,35 @@ To build the Rust backend run `cargo build`, to build the Python bindings run `u
 
 ## Examples
 
-You can find the basic usage examples in the `examples` directory showing unidirectional and bidirectional communication patterns in Rust. 
+You can find the basic usage examples in the `examples` directory showing unidirectional and bidirectional communication patterns in Rust and Python.
 
 Run unidirectional communication example:
 
 ```bash
+# Rust
 cargo run --example unidirectional
+```
+
+```bash
+# Python
+uv run python examples/unidirectional.py
 ```
 
 Run bidirectional communication example:
 
 ```bash
+# Rust
 cargo run --example bidirectional
+```
+
+```bash
+# Python
+uv run python examples/bidirectional.py
 ```
 
 *You can set the log level by setting the `RUST_LOG` environment variable. For example, to see info logs from the `prime-iroh` crate, set `RUST_LOG=prime_iroh=info`.*
 
 For Python usage, you would use the node class as follows:
-
-```python
-# On the receiver side
-from prime_iroh import Node
-
-# Initialize the node
-node = Node(num_streams=1)
-print(f"Connect to: {node.node_id()}")
-
-# Wait for sender to connect
-while not node.can_recv():
-    time.sleep(0.1)
-
-# Receive message
-msg = node.irecv(tag=0).wait()
-```
-
-```python
-# On the sender side
-from prime_iroh import Node
-
-# Initialize the node
-node = Node(num_streams=1)
-
-# Connect to the receiver
-node.connect(peer_id=...)
-
-# Wait for connection to be established
-while not node.can_send():
-    time.sleep(0.1)
-
-# Send message
-node.isend("Hello, world!".encode(), tag=0, latency=None).wait()
-```
 
 ## Tests
 
