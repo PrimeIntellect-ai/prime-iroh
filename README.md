@@ -16,7 +16,8 @@ PRIME-IROH: P2P Pipeline Parallel Communication
 This library exposes a Python interface for reliable, asynchronous peer-to-peer communication built upon [Iroh](https://github.com/iroh-project/iroh). The core classes exposed are:
 
 - `Node`: A class combining a single-peer sender/ receiver in one class, allowing to send to exactly *one* and receive from exactly *one* (potentially different) peer. The class allows for concurrent communication by opening multiple, consistent streams.
-- `Work`: A class representing the future of an asynchronous operation, that can be awaited using a `wait` method.
+- `SendWork`: A class representing the future of an asynchronous send operation, that can be awaited using a `wait` method.
+- `RecvWork`: A class representing the future of an asynchronous receive operation, that can be awaited using a `wait` method.
 
 Because we are building on top of Iroh, we get many nice networking features out of the box. Most importantly, the library guarantees reliable P2P connections between nodes, trying to establish directions connections whenever possible, and falling back to NAT-hole punching and relaying when necessary. The API is mirroring the way asynchronous communication is handled in `torch.distributed`, i.e. exposing `isend` and `irecv` that return work objects that can be awaited using a `wait` method. This allows for a clean integration with the rest of the PyTorch ecosystem.
 
@@ -49,9 +50,13 @@ git clone git@github.com:PrimeIntellect-ai/prime-iroh.git && cd prime-iroh
 
 To build the Rust backend run `cargo build`, to build the Python bindings run `uv sync`. This will let you install `prime-iroh` as a Python package within the virtual environment.
 
+```bash
+uv run python -c "import prime_iroh"
+```
+
 ## Examples
 
-You can find the basic usage examples in the `examples` directory showing unidirectional and bidirectional communication patterns in Rust and Python.
+You can find the basic usage examples in the `rust/examples` and `python/examples` directories showing unidirectional and bidirectional communication patterns in Rust and Python.
 
 Run unidirectional communication example:
 
@@ -62,7 +67,7 @@ cargo run --example unidirectional
 
 ```bash
 # Python
-uv run python examples/unidirectional.py
+uv run python python/examples/unidirectional.py
 ```
 
 Run bidirectional communication example:
@@ -74,16 +79,14 @@ cargo run --example bidirectional
 
 ```bash
 # Python
-uv run python examples/bidirectional.py
+uv run python python/examples/bidirectional.py
 ```
 
 *You can set the log level by setting the `RUST_LOG` environment variable. For example, to see info logs from the `prime-iroh` crate, set `RUST_LOG=prime_iroh=info`.*
 
-For Python usage, you would use the node class as follows:
-
 ## Tests
 
-We include unit tests and integration tests for the Rust backend which can be run using `cargo test`. The integration tests for uni- and bidirectional communication are also ported to Python and can be run using `uv run pytest`.
+We include unit tests and integration tests for Rust and Python.
 
 **Rust Tests**
 
@@ -117,8 +120,8 @@ uv run pytest
 
 To run the tests with verbose output, use `uv run pytest -s`.
 
-Run single test, e.g. `pytests/test_unidirectional.py`:
+Run single test, e.g. `python/tests/test_unidirectional.py`:
 
 ```bash
-uv run pytest tests/test_unidirectional.py
+uv run pytest python/tests/test_unidirectional.py
 ```
