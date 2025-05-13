@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "prime_iroh"
 version = "0.1.2"
-authors = [{name = "Mika Senghaas", email = "mika@primeintellect.ai"}]
+authors = [{ name = "Mika Senghaas", email = "mika@primeintellect.ai" }]
 description = "Asynchronous P2P communication backend for decentralized pipeline parallelism, built on top of Iroh"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -15,7 +15,7 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: POSIX :: Linux",
 ]
-license = {text = "MIT"}
+license = { text = "MIT" }
 license-files = ["LICENSE"]
 
 [project.urls]
@@ -27,6 +27,8 @@ Issues = "https://github.com/PrimeIntellect-ai/prime-iroh/issues"
 features = ["extension-module"]
 generate-stubs = true
 release = true
+module-name = "prime_iroh._prime_iroh"
+python-source = "python"
 
 [tool.uv]
 dev-dependencies = ["pytest", "maturin", "ruff", "pre-commit"]

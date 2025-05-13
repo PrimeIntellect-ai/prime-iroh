@@ -5,7 +5,7 @@ edition = "2024"
 
 [lib]
 name = "prime_iroh"
-path = "src/lib.rs"
+path = "rust/src/lib.rs"
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
@@ -17,6 +17,26 @@ hex = "0.4.3"
 pyo3 = { version = "0.24.0", features = ["extension-module"] }
 log = "0.4.27"
 env_logger = "0.11.8"
+
+[[example]]
+name = "unidirectional"
+path = "rust/examples/unidirectional.rs"
+
+[[example]]
+name = "bidirectional"
+path = "rust/examples/bidirectional.rs"
+
+[[test]]
+name = "bidirectional"
+path = "rust/tests/bidirectional.rs"
+
+[[test]]
+name = "unidirectional"
+path = "rust/tests/unidirectional.rs"
+
+[[test]]
+name = "connection"
+path = "rust/tests/connection.rs"
 
 [features]
 extension-module = []
