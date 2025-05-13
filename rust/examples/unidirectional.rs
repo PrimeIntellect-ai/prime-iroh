@@ -58,7 +58,7 @@ fn main() -> Result<()> {
             println!("Connecting to receiver...");
             let receiver_id =
                 String::from("9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454");
-            node.connect(receiver_id, 10, 100)?;
+            node.connect(receiver_id, 10)?;
 
             // Wait for connection to be established
             println!("Waiting for sender to be ready...");

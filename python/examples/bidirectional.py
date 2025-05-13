@@ -48,7 +48,7 @@ def main():
     
     # Wait until connection is established
     print("Waiting for connection...")
-    node.connect(peer_id, 10, 100)
+    node.connect(peer_id, 10)
     while not node.is_ready():
         time.sleep(0.1)
     print("Connected to peer!")

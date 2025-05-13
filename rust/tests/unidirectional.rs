@@ -20,13 +20,16 @@ impl UnidirectionalTest {
         let mut sender = Node::new(NUM_STREAMS)?;
         println!("Initialized sender (ID: {})", sender.node_id());
 
+        // Wait for nodes to initialize (only necessary in single process tests)
+        std::thread::sleep(Duration::from_millis(1000));
+
         // Connect sender to receiver
         println!(
             "Connecting sender->receiver (ID: {}->{})",
             sender.node_id(),
             receiver.node_id()
         );
-        sender.connect(receiver.node_id(), 10, 100)?;
+        sender.connect(receiver.node_id(), 10)?;
 
         // Wait for connection to be established
         while !receiver.can_recv() || !sender.can_send() {

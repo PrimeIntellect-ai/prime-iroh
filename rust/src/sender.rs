@@ -50,7 +50,6 @@ impl Sender {
         peer_id_str: String,
         num_streams: usize,
         num_retries: usize,
-        backoff_ms: usize,
     ) -> Result<()> {
         // Ensure we don't already have a connection
         ensure!(self.connection.is_none(), "Already have a connection");
@@ -66,7 +65,6 @@ impl Sender {
 
         // Connection loop
         let mut retries_left = num_retries;
-        let mut backoff = tokio::time::Duration::from_millis(backoff_ms as u64);
         while retries_left > 0 {
             match self.runtime.block_on(async {
                 // Try to establish connection
@@ -99,27 +97,19 @@ impl Sender {
                     return Ok(());
                 }
                 Err(e) => {
+                    retries_left -= 1;
                     let msg = format!(
-                        "Failed to connect {}->{} after {} retries: {}",
+                        "Failed to connect {}->{} after {} tries (left: {}): {}",
                         self.endpoint.node_id().fmt_short(),
-                        peer_id_str,
-                        num_retries,
+                        peer_addr.node_id.fmt_short(),
+                        num_retries - retries_left,
+                        retries_left,
                         e
                     );
                     log::warn!("{}", msg);
-                    retries_left -= 1;
                     if retries_left == 0 {
                         return Err(anyhow!(msg));
                     }
-
-                    // Wait with exponential backoff before retrying
-                    log::warn!("Waiting for {}ms before retrying", backoff.as_millis());
-                    self.runtime.block_on(async {
-                        tokio::time::sleep(backoff).await;
-                    });
-
-                    // Exponential backoff
-                    backoff *= 2;
                 }
             }
         }
