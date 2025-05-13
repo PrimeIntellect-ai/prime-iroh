@@ -101,7 +101,7 @@ impl Sender {
                     let msg = format!(
                         "Failed to connect {}->{} after {} tries (left: {}): {}",
                         self.endpoint.node_id().fmt_short(),
-                        peer_id_str,
+                        peer_addr.node_id.fmt_short(),
                         num_retries - retries_left,
                         retries_left,
                         e
