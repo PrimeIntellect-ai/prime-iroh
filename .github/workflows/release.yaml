@@ -4,12 +4,10 @@ on:
   push:
     tags:
       - 'v*'
-    branches:
-      - master
 
 jobs:
-  build:
-    name: Build wheels on ${{ matrix.os }}
+  build-and-upload-wheels:
+    name: Build and upload wheels on ${{ matrix.os }} for ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
