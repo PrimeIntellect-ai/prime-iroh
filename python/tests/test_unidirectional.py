@@ -10,12 +10,12 @@ class UnidirectionalTest:
         # Initialize receiver
         self.receiver = Node(num_streams=NUM_STREAMS)
         
-        # Wait for receiver to be ready
+        # Wait for nodes to initialize (only necessary in single process tests)
         time.sleep(1)
         
         # Initialize sender
         self.sender = Node(num_streams=NUM_STREAMS)
-        self.sender.connect(self.receiver.node_id(), 10, 1000)
+        self.sender.connect(self.receiver.node_id(), 10)
         
         # Wait for connection to be established
         while not self.receiver.can_recv() or not self.sender.can_send():

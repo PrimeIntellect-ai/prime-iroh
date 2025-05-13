@@ -13,6 +13,9 @@ class ConnectionTest:
             node_id = node.node_id()
             print(f"Initializing node {i} (ID: {node_id})")
             self.nodes.append(node)
+
+        # Wait for nodes to initialize (only necessary in single process tests)
+        time.sleep(1)
         
         # Connect nodes
         for i in range(num_nodes):
@@ -21,7 +24,7 @@ class ConnectionTest:
             node_id = current_node.node_id()
             peer_id = self.nodes[j].node_id()
             print(f"Connecting node {i}->{j} (ID: {node_id}->{peer_id})")
-            current_node.connect(peer_id, 10, 100)
+            current_node.connect(peer_id, 10)
         
         # Wait for all nodes to be ready
         while not all(node.is_ready() for node in self.nodes):

@@ -22,6 +22,9 @@ impl ConnectionTest {
             node_ids.push(node_id);
         }
 
+        // Wait for nodes to initialize (only necessary in single process tests)
+        std::thread::sleep(Duration::from_millis(1000));
+
         // Connect nodes
         for i in 0..num_nodes {
             let current_node = &mut nodes[i];

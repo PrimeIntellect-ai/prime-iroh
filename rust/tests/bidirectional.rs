@@ -1,5 +1,6 @@
 use anyhow::Result;
 use prime_iroh::node::Node;
+use std::time::Duration;
 
 const NUM_MESSAGES: usize = 5;
 const NUM_STREAMS: usize = 1;
@@ -16,6 +17,9 @@ impl BidirectionalTest {
         println!("Initializing node 0 (ID: {})", node0.node_id());
         let mut node1 = Node::with_seed(NUM_STREAMS, None)?;
         println!("Initializing node 1 (ID: {})", node1.node_id());
+
+        // Wait for nodes to initialize (only necessary in single process tests)
+        std::thread::sleep(Duration::from_millis(1000));
 
         // Connect bidirectionally
         println!(
