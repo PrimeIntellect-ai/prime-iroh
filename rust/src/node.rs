@@ -49,14 +49,9 @@ impl Node {
         self.endpoint.node_id().to_string()
     }
 
-    pub fn connect(
-        &mut self,
-        peer_id_str: String,
-        num_retries: usize,
-        backoff_ms: usize,
-    ) -> Result<()> {
+    pub fn connect(&mut self, peer_id_str: String, num_retries: usize) -> Result<()> {
         self.sender
-            .connect(peer_id_str, self.num_streams, num_retries, backoff_ms)?;
+            .connect(peer_id_str, self.num_streams, num_retries)?;
         Ok(())
     }
 

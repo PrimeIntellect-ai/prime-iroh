@@ -23,13 +23,13 @@ impl BidirectionalTest {
             node0.node_id(),
             node1.node_id()
         );
-        node0.connect(node1.node_id(), 10, 1000)?;
+        node0.connect(node1.node_id(), 10)?;
         println!(
             "Connecting node 1->0 (ID: {}->{})",
             node1.node_id(),
             node0.node_id()
         );
-        node1.connect(node0.node_id(), 10, 1000)?;
+        node1.connect(node0.node_id(), 10)?;
 
         while !node0.can_recv() || !node1.can_send() {
             std::thread::sleep(std::time::Duration::from_millis(100));

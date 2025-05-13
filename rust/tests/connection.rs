@@ -32,7 +32,7 @@ impl ConnectionTest {
                 "Connecting node {}->{} (ID: {}->{})",
                 i, j, node_id, peer_id
             );
-            current_node.connect(peer_id, 10, 100)?;
+            current_node.connect(peer_id, 10)?;
         }
 
         while !nodes.iter().all(|node| node.is_ready()) {

@@ -118,14 +118,9 @@ impl Node {
         self.inner.node_id().to_string()
     }
 
-    pub fn connect(
-        &mut self,
-        peer_id_str: String,
-        num_retries: usize,
-        backoff_ms: usize,
-    ) -> PyResult<()> {
+    pub fn connect(&mut self, peer_id_str: String, num_retries: usize) -> PyResult<()> {
         self.inner
-            .connect(peer_id_str, num_retries, backoff_ms)
+            .connect(peer_id_str, num_retries)
             .map_err(|e| PyRuntimeError::new_err(e.to_string()))
     }
 

@@ -26,7 +26,7 @@ impl UnidirectionalTest {
             sender.node_id(),
             receiver.node_id()
         );
-        sender.connect(receiver.node_id(), 10, 100)?;
+        sender.connect(receiver.node_id(), 10)?;
 
         // Wait for connection to be established
         while !receiver.can_recv() || !sender.can_send() {

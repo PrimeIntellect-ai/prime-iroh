@@ -65,13 +65,12 @@ class Node:
         """
         ...
     
-    def connect(self, peer_id_str: str, num_retries: int, backoff_ms: int) -> None:
+    def connect(self, peer_id_str: str, num_retries: int) -> None:
         """Connect to a Node with a given node ID.
         
         Args:
             peer_id_str: The ID of the peer to connect to
             num_retries: The number of retries to attempt
-            backoff_ms: The backoff time in milliseconds
             
         Raises:
             RuntimeError: If connection fails

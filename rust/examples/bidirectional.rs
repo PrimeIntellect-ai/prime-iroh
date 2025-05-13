@@ -59,7 +59,7 @@ fn main() -> Result<()> {
 
     // Wait until connection is established
     println!("Waiting for connection...");
-    node.connect(peer_id, 10, 100)?;
+    node.connect(peer_id, 10)?;
     while !node.is_ready() {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
