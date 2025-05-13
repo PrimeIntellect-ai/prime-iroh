@@ -49,7 +49,7 @@ git clone git@github.com:PrimeIntellect-ai/prime-iroh.git && cd prime-iroh
 
 To build the Rust backend run `cargo build`, to build the Python bindings run `uv sync`. This will let you install `prime-iroh` as a Python package within the virtual environment.
 
-## Usage
+## Examples
 
 You can find the basic usage examples in the `examples` directory showing unidirectional and bidirectional communication patterns in Rust. 
 
@@ -64,6 +64,8 @@ Run bidirectional communication example:
 ```bash
 cargo run --example bidirectional
 ```
+
+*You can set the log level by setting the `RUST_LOG` environment variable. For example, to see info logs from the `prime-iroh` crate, set `RUST_LOG=prime_iroh=info`.*
 
 For Python usage, you would use the node class as follows:
 
