@@ -9,7 +9,7 @@ use tokio::sync::Mutex;
 
 use crate::work::SendWork;
 
-const ALPN: &[u8] = b"hello-world";
+const ALPN: &[u8] = b"prime-iroh";
 
 pub struct SenderConnection {
     connection: Connection,

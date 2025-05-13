@@ -10,7 +10,7 @@ use tokio::sync::Mutex;
 
 use crate::work::RecvWork;
 
-const ALPN: &[u8] = b"hello-world";
+const ALPN: &[u8] = b"prime-iroh";
 
 #[derive(Clone, Debug)]
 struct ReceiverState {
