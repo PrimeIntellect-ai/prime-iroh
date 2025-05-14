@@ -13,7 +13,7 @@ PRIME-IROH: P2P Pipeline Parallel Communication
 
 ---
 
-This library exposes a Python interface for reliable, asynchronous peer-to-peer communication built upon [Iroh](https://github.com/iroh-project/iroh). The core classes exposed are:
+This library exposes a Python interface for reliable, asynchronous peer-to-peer communication built upon [Iroh](https://github.com/n0-computer/iroh). The core classes exposed are:
 
 - `Node`: A class combining a single-peer sender/ receiver in one class, allowing to send to exactly *one* and receive from exactly *one* (potentially different) peer. The class allows for concurrent communication by opening multiple, consistent streams.
 - `SendWork`: A class representing the future of an asynchronous send operation, that can be awaited using a `wait` method.
