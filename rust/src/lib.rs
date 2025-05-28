@@ -21,6 +21,19 @@ use std::sync::RwLock;
 use pyo3::exceptions::PyRuntimeError;
 use pyo3::prelude::*;
 
+// Helper function to format errors with full chain
+fn format_error_chain(err: &anyhow::Error) -> String {
+    let mut result = format!("Error: {}", err);
+    let mut source = err.source();
+    while let Some(err) = source {
+        result.push_str(&format!("\nCaused by: {}", err));
+        source = err.source();
+    }
+    // Also log the error to Rust logs
+    log::error!("{}", result);
+    result
+}
+
 #[pyclass]
 pub struct SendWork {
     inner: RwLock<Option<Result<IrohSendWork>>>,
@@ -42,12 +55,12 @@ impl SendWork {
         let mut write_guard = self
             .inner
             .write()
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            .map_err(|e| PyRuntimeError::new_err(format!("Lock error: {}", e)))?;
         if let Some(inner) = write_guard.take() {
             inner
                 .unwrap()
                 .wait()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(|e| PyRuntimeError::new_err(format_error_chain(&e)))
         } else {
             Err(PyRuntimeError::new_err(
                 "SendWork has already been consumed",
@@ -77,12 +90,12 @@ impl RecvWork {
         let mut write_guard = self
             .inner
             .write()
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))?;
+            .map_err(|e| PyRuntimeError::new_err(format!("Lock error: {}", e)))?;
         if let Some(inner) = write_guard.take() {
             inner
                 .unwrap()
                 .wait()
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+                .map_err(|e| PyRuntimeError::new_err(format_error_chain(&e)))
         } else {
             Err(PyRuntimeError::new_err(
                 "RecvWork has already been consumed",
@@ -102,7 +115,7 @@ impl Node {
     pub fn new(num_streams: usize) -> PyResult<Self> {
         Ok(Self {
             inner: IrohNode::new(num_streams)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                .map_err(|e| PyRuntimeError::new_err(format_error_chain(&e)))?,
         })
     }
 
@@ -110,7 +123,7 @@ impl Node {
     pub fn with_seed(num_streams: usize, seed: Option<u64>) -> PyResult<Self> {
         Ok(Self {
             inner: IrohNode::with_seed(num_streams, seed)
-                .map_err(|e| PyRuntimeError::new_err(e.to_string()))?,
+                .map_err(|e| PyRuntimeError::new_err(format_error_chain(&e)))?,
         })
     }
 
@@ -121,7 +134,7 @@ impl Node {
     pub fn connect(&mut self, peer_id_str: String, num_retries: usize) -> PyResult<()> {
         self.inner
             .connect(peer_id_str, num_retries)
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+            .map_err(|e| PyRuntimeError::new_err(format_error_chain(&e)))
     }
 
     pub fn can_recv(&self) -> bool {
@@ -153,7 +166,7 @@ impl Node {
     pub fn close(&mut self) -> PyResult<()> {
         self.inner
             .close()
-            .map_err(|e| PyRuntimeError::new_err(e.to_string()))
+            .map_err(|e| PyRuntimeError::new_err(format_error_chain(&e)))
     }
 }
 
@@ -164,7 +177,7 @@ static INIT: Once = Once::new();
 // Expose classes to Python
 #[pymodule]
 fn _prime_iroh(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Initialize logging via environment variables
+    // Initialize logging via environment variables with more detailed configuration
     INIT.call_once(|| {
         env_logger::init();
     });
