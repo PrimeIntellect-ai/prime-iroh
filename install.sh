@@ -12,7 +12,7 @@ log_info() {
 
 main() {
     log_info "Cloning repository..."
-    git clone https://github.com/PrimeIntellect-ai/prime-iroh.git
+    git clone git@github.com:PrimeIntellect-ai/prime-iroh.git
     
     log_info "Entering project directory..."
     cd prime-iroh
