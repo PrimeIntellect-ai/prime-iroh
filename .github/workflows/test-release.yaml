@@ -4,30 +4,83 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-and-upload-wheels:
-    name: Build and upload wheels on ${{ matrix.os }} for ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
+  linux:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13']
-
+        target: [x86_64, i686]
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Maturin
-        run: |
-          pip install maturin==1.8.3
-
+      
       - name: Build wheels
-        run: |
-          maturin build --release --manylinux -i ${{ matrix.python-version }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          sccache: 'true'
+          manylinux: '2014'
+          
+      - name: Upload wheels to Test PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
 
-      - name: Upload to Test PyPI
-        run: |
-          maturin upload --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing target/wheels/*
+  windows:
+    runs-on: windows-latest
+    strategy:
+      matrix:
+        target: [x64, x86]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          sccache: 'true'
+          
+      - name: Upload wheels to Test PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
+
+  macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist
+          sccache: 'true'
+          
+      - name: Upload wheels to Test PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          
+      - name: Upload sdist to Test PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
