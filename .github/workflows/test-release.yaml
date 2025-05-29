@@ -30,31 +30,6 @@ jobs:
           MATURIN_USERNAME: __token__
           MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
 
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [x64, x86]
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
-          sccache: 'true'
-          
-      - name: Upload wheels to Test PyPI
-        uses: PyO3/maturin-action@v1
-        with:
-          command: upload
-          args: --skip-existing dist/*
-        env:
-          MATURIN_REPOSITORY_URL: https://test.pypi.org/legacy/
-          MATURIN_USERNAME: __token__
-          MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
-
   macos:
     runs-on: macos-latest
     strategy:
