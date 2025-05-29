@@ -6,30 +6,71 @@ on:
       - 'v*'
 
 jobs:
-  build-and-upload-wheels:
-    name: Build and upload wheels on ${{ matrix.os }} for ${{ matrix.python-version }}
-    runs-on: ${{ matrix.os }}
+  linux:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest]
-        python-version: ['3.10', '3.11', '3.12', '3.13']
-
+        target: [x86_64, i686]
     steps:
       - uses: actions/checkout@v3
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install Maturin
-        run: |
-          pip install maturin==1.8.3
-
+      
       - name: Build wheels
-        run: |
-          maturin build --release --manylinux -i ${{ matrix.python-version }}
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          sccache: 'true'
+          manylinux: '2014'
+          
+      - name: Upload wheels to PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --skip-existing dist/*
+        env:
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
-      - name: Upload to PyPI
-        run: |
-          maturin upload --username __token__ --password ${{ secrets.PYPI_TOKEN }} --skip-existing target/wheels/*
+  macos:
+    runs-on: macos-latest
+    strategy:
+      matrix:
+        target: [x86_64, aarch64]
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        with:
+          target: ${{ matrix.target }}
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
+          sccache: 'true'
+          
+      - name: Upload wheels to PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --skip-existing dist/*
+        env:
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+          
+      - name: Upload sdist to PyPI
+        uses: PyO3/maturin-action@v1
+        with:
+          command: upload
+          args: --skip-existing dist/*
+        env:
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
