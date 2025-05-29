@@ -24,7 +24,11 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_REPOSITORY_URL: https://test.pypi.org/legacy/
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
 
   windows:
     runs-on: windows-latest
@@ -45,7 +49,11 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_REPOSITORY_URL: https://test.pypi.org/legacy/
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
 
   macos:
     runs-on: macos-latest
@@ -66,7 +74,11 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_REPOSITORY_URL: https://test.pypi.org/legacy/
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
 
   sdist:
     runs-on: ubuntu-latest
@@ -83,4 +95,8 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --repository-url https://test.pypi.org/legacy/ --username __token__ --password ${{ secrets.TEST_PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_REPOSITORY_URL: https://test.pypi.org/legacy/
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}
