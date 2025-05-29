@@ -18,36 +18,18 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
           sccache: 'true'
           manylinux: '2014'
           
-      - name: Upload wheels
+      - name: Upload wheels to PyPI
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --username __token__ --password ${{ secrets.PYPI_TOKEN }} --skip-existing dist/*
-
-  windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target: [x64, x86]
-    steps:
-      - uses: actions/checkout@v3
-      
-      - name: Build wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          target: ${{ matrix.target }}
-          args: --release --out dist
-          sccache: 'true'
-          
-      - name: Upload wheels
-        uses: PyO3/maturin-action@v1
-        with:
-          command: upload
-          args: --username __token__ --password ${{ secrets.PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
   macos:
     runs-on: macos-latest
@@ -61,14 +43,17 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: --release --out dist
+          args: --release --out dist -i python3.9 -i python3.10 -i python3.11 -i python3.12 -i python3.13
           sccache: 'true'
           
-      - name: Upload wheels
+      - name: Upload wheels to PyPI
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --username __token__ --password ${{ secrets.PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
 
   sdist:
     runs-on: ubuntu-latest
@@ -81,8 +66,11 @@ jobs:
           command: sdist
           args: --out dist
           
-      - name: Upload sdist
+      - name: Upload sdist to PyPI
         uses: PyO3/maturin-action@v1
         with:
           command: upload
-          args: --username __token__ --password ${{ secrets.PYPI_TOKEN }} --skip-existing dist/*
+          args: --skip-existing dist/*
+        env:
+          MATURIN_USERNAME: __token__
+          MATURIN_PASSWORD: ${{ secrets.PYPI_TOKEN }}
