@@ -56,6 +56,9 @@ fn main() -> Result<()> {
 
             // Connect to receiver
             println!("Connecting to receiver...");
+            // Node address is not available and will trigger discovery error
+            let _unavailable_receiver_id =
+                String::from("eb1bfc8c80bb48e35e1570c3ded65c32887e0b0c43331c9f7f7a92aabefb2edb");
             let receiver_id =
                 String::from("9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454");
             node.connect(receiver_id, 10)?;

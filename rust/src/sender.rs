@@ -1,7 +1,7 @@
-use anyhow::{Error, Result, anyhow, ensure};
+use anyhow::{Error, Result, ensure};
 use iroh::{
     Endpoint, NodeAddr, NodeId,
-    endpoint::{Connection, SendStream},
+    endpoint::{Connection, ConnectionError, SendStream},
 };
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -98,17 +98,28 @@ impl Sender {
                 }
                 Err(e) => {
                     retries_left -= 1;
-                    let msg = format!(
-                        "Failed to connect {}->{} after {} tries (left: {}): {}",
-                        self.endpoint.node_id().fmt_short(),
-                        peer_addr.node_id.fmt_short(),
-                        num_retries - retries_left,
-                        retries_left,
-                        e
-                    );
-                    log::warn!("{}", msg);
+                    if let Some(_connection_error) = e.downcast_ref::<ConnectionError>() {
+                        // Connection fails if the discovery succeeds but the connnection fails (node is still booting up)
+                        let msg = format!(
+                            "Connection failed after {} tries (left: {})",
+                            num_retries - retries_left,
+                            retries_left,
+                        );
+                        log::warn!("{}", msg);
+                    } else {
+                        // This is likely a discovery error which happens when the node address is not yet available
+                        // TODO(Mika): Handle this more elegantly
+                        let msg = format!(
+                            "Unexpected error during connection after {} tries (left: {}). It's likely that address information via discovery is not yet available. Sleeping for 30s before retrying...",
+                            num_retries - retries_left,
+                            retries_left,
+                        );
+                        log::warn!("{}", msg);
+                        std::thread::sleep(std::time::Duration::from_secs(30));
+                    }
+
                     if retries_left == 0 {
-                        return Err(anyhow!(msg));
+                        return Err(e);
                     }
                 }
             }
