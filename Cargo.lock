@@ -2489,7 +2489,7 @@ dependencies = [
 
 [[package]]
 name = "prime_iroh"
-version = "0.3.0"
+version = "0.3.1"
 dependencies = [
  "anyhow",
  "env_logger",
