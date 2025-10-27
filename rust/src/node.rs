@@ -50,6 +50,9 @@ impl Node {
     }
 
     pub fn connect(&mut self, peer_id_str: String, num_retries: usize) -> Result<()> {
+        if peer_id_str == self.node_id() {
+            anyhow::bail!("Cannot connect to self (node ID: {})", peer_id_str);
+        }
         self.sender
             .connect(peer_id_str, self.num_streams, num_retries)?;
         Ok(())
