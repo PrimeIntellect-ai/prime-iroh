@@ -44,11 +44,11 @@ def main():
         sys.exit(1)
         
     # Initialize node with rank seed
-    node = Node.with_seed(num_streams, seed=rank)
+    node = Node.with_seed(num_streams=num_streams, seed=rank)
     
     # Wait until connection is established
     print("Waiting for connection...")
-    node.connect(peer_id, 10)
+    node.connect(peer_id_str=peer_id, num_retries=10)
     while not node.is_ready():
         time.sleep(0.1)
     print("Connected to peer!")
@@ -58,10 +58,10 @@ def main():
         # Send message
         send_msg = f"Hello from rank {rank}"
         bytes_data = send_msg.encode('utf-8')
-        send_work = node.isend(bytes_data, 0, 1000)
+        send_work = node.isend(msg=bytes_data, tag=0, latency=1000)
         
         # Receive message
-        recv_work = node.irecv(0)
+        recv_work = node.irecv(tag=0)
         bytes_data = recv_work.wait()
         recv_msg = bytes_data.decode('utf-8')
         print(f"Received message {i + 1}: {recv_msg}")
