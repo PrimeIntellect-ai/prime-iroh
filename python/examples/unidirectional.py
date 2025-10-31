@@ -30,7 +30,7 @@ def main():
     if mode == "receiver":
         # Run the receiver
         print("Running receiver")
-        node = Node.with_seed(num_streams, seed=42)
+        node = Node.with_seed(num_streams=num_streams, seed=42)
         
         # Wait for incoming connection
         print("Waiting for receiver to be ready...")
@@ -40,19 +40,19 @@ def main():
         
         # Receive messages
         for i in range(num_messages):
-            bytes_data = node.irecv(0).wait()
+            bytes_data = node.irecv(tag=0).wait()
             msg = bytes_data.decode('utf-8')
             print(f"Received message {i + 1}: {msg}")
             
     elif mode == "sender":
         # Run the sender
         print("Running sender")
-        node = Node.with_seed(num_streams, seed=None)
+        node = Node.with_seed(num_streams=num_streams, seed=None)
         
         # Connect to receiver
         print("Connecting to receiver...")
         receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454"
-        node.connect(receiver_id, 10)
+        node.connect(peer_id_str=receiver_id, num_retries=10)
         
         # Wait for connection to be established
         print("Waiting for sender to be ready...")
@@ -64,7 +64,7 @@ def main():
         for i in range(num_messages):
             msg = "Hello from sender"
             bytes_data = msg.encode('utf-8')
-            node.isend(bytes_data, 0, 1000).wait()  # 1s artificial latency
+            node.isend(msg=bytes_data, tag=0, latency=1000).wait()  # 1s artificial latency
             print(f"Sent message {i + 1}: {msg}")
             
     else:
