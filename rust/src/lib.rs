@@ -157,16 +157,46 @@ impl Node {
     }
 }
 
-// Initialize logging via environment variables
+// Initialize logging via environment variables with filtering for noisy iroh internals
 use std::sync::Once;
 static INIT: Once = Once::new();
 
 // Expose classes to Python
 #[pymodule]
 fn _prime_iroh(_py: Python, m: &Bound<'_, PyModule>) -> PyResult<()> {
-    // Initialize logging via environment variables
+    // Initialize logging via environment variables with custom filter
     INIT.call_once(|| {
-        env_logger::init();
+        use env_logger::Builder;
+        use log::LevelFilter;
+
+        let mut builder = Builder::from_default_env();
+
+        // Filter out noisy ERROR log lines from iroh internals
+        // These come from iroh::discovery::pkarr and tracing::span
+        builder.filter_module("iroh::discovery::pkarr", LevelFilter::Warn);
+        builder.filter_module("iroh::discovery", LevelFilter::Warn);
+        builder.filter_module("tracing::span", LevelFilter::Warn);
+
+        // Suppress non-fatal errors from iroh internals during node creation
+        // This handles pkarr publish failures and tracing span errors
+        builder.filter(|filter| {
+            let target = filter.target();
+            let level = filter.level();
+
+            // Suppress ERROR level from noisy iroh modules
+            if level == log::Level::Error {
+                if target.contains("iroh::discovery")
+                    || target.contains("iroh::endpoint")
+                    || target.contains("pkarr")
+                    || target.contains("tracing::span")
+                {
+                    return false;
+                }
+            }
+            true
+        });
+
+        builder.init();
     });
 
     m.add_class::<SendWork>()?;

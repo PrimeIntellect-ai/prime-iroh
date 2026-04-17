@@ -26,54 +26,63 @@ def main():
     num_streams = 1
     num_messages = 5
     mode = sys.argv[1]
+    node = None
     
-    if mode == "receiver":
-        # Run the receiver
-        print("Running receiver")
-        node = Node.with_seed(num_streams, seed=42)
-        
-        # Wait for incoming connection
-        print("Waiting for receiver to be ready...")
-        while not node.can_recv():
-            time.sleep(0.1)
-        print("Ready to receive!")
-        
-        # Receive messages
-        for i in range(num_messages):
-            bytes_data = node.irecv(0).wait()
-            msg = bytes_data.decode('utf-8')
-            print(f"Received message {i + 1}: {msg}")
+    try:
+        if mode == "receiver":
+            # Run the receiver
+            print("Running receiver")
+            node = Node.with_seed(num_streams, seed=42)
             
-    elif mode == "sender":
-        # Run the sender
-        print("Running sender")
-        node = Node.with_seed(num_streams, seed=None)
-        
-        # Connect to receiver
-        print("Connecting to receiver...")
-        receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454"
-        node.connect(receiver_id, 10)
-        
-        # Wait for connection to be established
-        print("Waiting for sender to be ready...")
-        while not node.can_send():
-            time.sleep(0.1)
-        print("Ready to send!")
-        
-        # Send messages
-        for i in range(num_messages):
-            msg = "Hello from sender"
-            bytes_data = msg.encode('utf-8')
-            node.isend(bytes_data, 0, 1000).wait()  # 1s artificial latency
-            print(f"Sent message {i + 1}: {msg}")
+            # Wait for incoming connection
+            print("Waiting for receiver to be ready...")
+            while not node.can_recv():
+                time.sleep(0.1)
+            print("Ready to receive!")
             
-    else:
-        print(f"Invalid mode. Use 'sender' or 'receiver'")
-        sys.exit(1)
-        
-    # Clean up
-    print("Closing node...")
-    node.close()
+            # Receive messages
+            for i in range(num_messages):
+                bytes_data = node.irecv(0).wait()
+                msg = bytes_data.decode('utf-8')
+                print(f"Received message {i + 1}: {msg}")
+                
+        elif mode == "sender":
+            # Run the sender
+            print("Running sender")
+            node = Node.with_seed(num_streams, seed=None)
+            
+            # Connect to receiver
+            print("Connecting to receiver...")
+            receiver_id = "9bdb607f02802cdd126290cfa1e025e4c13bbdbb347a70edeace584159303454"
+            node.connect(receiver_id, 10)
+            
+            # Wait for connection to be established
+            print("Waiting for sender to be ready...")
+            while not node.can_send():
+                time.sleep(0.1)
+            print("Ready to send!")
+            
+            # Send messages
+            for i in range(num_messages):
+                msg = "Hello from sender"
+                bytes_data = msg.encode('utf-8')
+                node.isend(bytes_data, 0, 1000).wait()  # 1s artificial latency
+                print(f"Sent message {i + 1}: {msg}")
+                
+        else:
+            print(f"Invalid mode. Use 'sender' or 'receiver'")
+            sys.exit(1)
+            
+    except KeyboardInterrupt:
+        print("\nInterrupted by user, cleaning up...")
+    finally:
+        # Clean up
+        if node is not None:
+            print("Closing node...")
+            try:
+                node.close()
+            except Exception:
+                pass  # Ignore errors during cleanup
 
 if __name__ == "__main__":
-    main() 
+    main()
